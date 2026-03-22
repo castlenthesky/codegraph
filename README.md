@@ -1,71 +1,98 @@
-# codegraph README
+# CodeGraph
 
-This is the README for your extension "codegraph". After writing up a brief description, we recommend including the following sections.
+A VS Code extension that provides real-time code property graph (CPG) visualization and analysis for multi-language codebases. CodeGraph builds a comprehensive graph representation combining syntactic structure, control flow, and program dependencies based on the [Joern CPG specification](https://cpg.joern.io/).
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- **Multi-Language Support**: Analyze TypeScript, JavaScript, Python, Go, Rust, Java, and C/C++ codebases
+- **Real-Time Analysis**: Incremental graph updates triggered on file save
+- **Interactive Visualization**: Explore code dependencies and relationships through graph rendering
+- **Flexible Storage**: Embedded database or remote FalkorDB connection
+- **Cypher Queries**: Query your codebase using the Cypher graph query language
 
-For example if there is an image subfolder under your extension project workspace:
+## Prerequisites
 
-\!\[feature X\]\(images/feature-x.png\)
+Before installing the extension, ensure your system has the following packages:
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+### Linux (Debian/Ubuntu)
+```bash
+sudo apt-get install redis-server libgomp1
+```
 
-## Requirements
+### Linux (RHEL/Fedora)
+```bash
+sudo dnf install redis libgomp
+```
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+### macOS
+```bash
+brew install redis
+```
+
+### Windows
+Install Redis using one of these methods:
+- [Redis for Windows](https://github.com/microsoftarchive/redis/releases)
+- [Memurai](https://www.memurai.com/) (Redis-compatible)
+- WSL2 with Linux installation
+
+## Configuration
+
+Access the CodeGraph configuration panel from the VS Code sidebar. The extension supports two connection modes:
+
+### Embedded Mode
+Uses an embedded FalkorDB instance (falkordblite) that runs locally:
+
+- **Data Path**: Local directory where graph data is stored (default: `${workspaceFolder}/.codegraph`)
+
+### Remote Mode
+Connects to an external FalkorDB/Redis server:
+
+- **Host**: FalkorDB server hostname (default: `localhost`)
+- **Port**: Server port (default: `6379`)
+- **Password**: Optional authentication password
+- **Graph Name**: Name of the graph database to use (default: `default`)
+
+## Getting Started
+
+1. Install the extension
+2. Open a workspace/folder in VS Code
+3. Open the CodeGraph configuration panel
+4. Choose your connection mode and configure settings
+5. Click "Apply Configuration"
+6. Save a file in your workspace to trigger initial graph construction
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
 This extension contributes the following settings:
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+- `falkordb.connectionMode`: Connection mode (`embedded` or `remote`)
+- `falkordb.host`: FalkorDB server host (remote mode)
+- `falkordb.port`: FalkorDB server port (remote mode)
+- `falkordb.password`: Authentication password (remote mode)
+- `falkordb.graphName`: Name of the graph database
+- `falkordb.dataPath`: Local data directory (embedded mode)
+
+## Architecture
+
+CodeGraph uses a multi-layered architecture:
+
+1. **UAST Layer**: Universal Abstract Syntax Tree using Tree-sitter parsers
+2. **CFG Layer**: Control Flow Graph construction
+3. **PDG Layer**: Program Dependence Graph with data and control dependencies
+4. **Storage Layer**: FalkorDB graph database
+5. **Visualization Layer**: Interactive webview with force-directed graph rendering
+
+For detailed architecture documentation, see the [design documentation](design/02_planned/CPG/).
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- Large codebases (>10k files) may experience initial parse delays
+- Embedded mode requires write permissions in the workspace directory
 
-## Release Notes
+## Contributing
 
-Users appreciate release notes as you update your extension.
+See the [design documentation](design/02_planned/CPG/) for implementation details and architectural decisions.
 
-### 1.0.0
+## License
 
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+See LICENSE file for details.

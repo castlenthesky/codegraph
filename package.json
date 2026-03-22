@@ -12,10 +12,79 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "falkordb-explorer",
+          "title": "FalkorDB",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "falkordb-explorer": [
+        {
+          "icon": "$(settings-gear)",
+          "id": "falkordb.graph",
+          "name": "Graph View",
+          "type": "webview"
+        },
+        {
+          "icon": "$(type-hierarchy)",
+          "id": "falkordb.details",
+          "name": "Node / Edge Details",
+          "type": "webview"
+        },
+        {
+          "icon": "$(list-selection)",
+          "id": "falkordb.config",
+          "name": "Connection & Config",
+          "type": "webview"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "FalkorDB",
+      "properties": {
+        "falkordb.connectionMode": {
+          "type": "string",
+          "enum": [
+            "embedded",
+            "remote"
+          ],
+          "default": "embedded",
+          "description": "Whether to use the zero-config embedded FalkorDBLite or a remote instance"
+        },
+        "falkordb.host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "Host for remote FalkorDB connection"
+        },
+        "falkordb.port": {
+          "type": "number",
+          "default": 6379,
+          "description": "Port for remote FalkorDB connection"
+        },
+        "falkordb.password": {
+          "type": "string",
+          "description": "Password for remote FalkorDB (stored securely)"
+        },
+        "falkordb.graphName": {
+          "type": "string",
+          "default": "default",
+          "description": "Name of the graph to use/query"
+        },
+        "falkordb.dataPath": {
+          "type": "string",
+          "default": "${workspaceFolder}/.falkordb",
+          "description": "Filesystem path for embedded FalkorDBLite persistence"
+        }
+      }
+    },
     "commands": [
       {
-        "command": "codegraph.helloWorld",
-        "title": "Hello World"
+        "command": "falkordb.helloWorld",
+        "title": "FalkorDB: Hello World"
       }
     ]
   },
@@ -28,13 +97,18 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.109.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.54.0",
+    "@types/vscode": "^1.109.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.39.2",
     "typescript": "^5.9.3",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "typescript-eslint": "^8.54.0"
+  },
+  "dependencies": {
+    "@falkordblite/linux-x64": "^8.2.3-falkordb.4.16.3",
+    "falkordb": "^6.6.2",
+    "falkordblite": "^0.2.0"
   }
 }
