@@ -24,19 +24,19 @@
     "views": {
       "falkordb-explorer": [
         {
-          "icon": "$(settings-gear)",
+          "icon": "$(type-hierarchy)",
           "id": "falkordb.graph",
           "name": "Graph View",
           "type": "webview"
         },
         {
-          "icon": "$(type-hierarchy)",
+          "icon": "$(list-selection)",
           "id": "falkordb.details",
           "name": "Node / Edge Details",
           "type": "webview"
         },
         {
-          "icon": "$(list-selection)",
+          "icon": "$(settings-gear)",
           "id": "falkordb.config",
           "name": "Connection & Config",
           "type": "webview"
@@ -78,6 +78,11 @@
           "type": "string",
           "default": "${workspaceFolder}/.falkordb",
           "description": "Filesystem path for embedded FalkorDBLite persistence"
+        },
+        "falkordb.watchFolders": {
+          "type": "string",
+          "default": "src",
+          "description": "Comma-separated list of folders to watch for file system changes (relative to workspace root)"
         }
       }
     },
@@ -94,15 +99,23 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test:unit": "bun test test/*.test.ts",
+    "test:unit:coverage": "bun test --coverage test/*.test.ts",
+    "test:integration": "npm run compile && vscode-test",
+    "test:integration:coverage": "npm run compile && vscode-test --coverage --coverage-reporter lcov --coverage-reporter text",
+    "test": "npm run test:unit && npm run test:integration",
+    "coverage": "npm run test:unit:coverage && npm run test:integration:coverage"
   },
   "devDependencies": {
+    "@types/bun": "^1.3.11",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/vscode": "^1.109.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.39.2",
+    "tree-sitter": "^0.21.0",
+    "tree-sitter-python": "^0.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0"
   },

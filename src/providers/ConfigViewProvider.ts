@@ -21,10 +21,12 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
 				await config.update('password', message.data.password, vscode.ConfigurationTarget.Global);
 				await config.update('graphName', message.data.graphName, vscode.ConfigurationTarget.Global);
 				await config.update('dataPath', message.data.dataPath, vscode.ConfigurationTarget.Global);
-				
+				await config.update('watchFolders', message.data.watchFolders, vscode.ConfigurationTarget.Global);
+
 				vscode.window.showInformationMessage('FalkorDB configuration updated successfully!');
 				this.checkAndSendStatus();
-			} else if (message.command === 'populateDemo') {
+			} else if (message.command === 'populateDemo_REMOVED') {
+		// REMOVED: Demo node population no longer needed
 				try {
 					const config = vscode.workspace.getConfiguration('falkordb');
 					const mode = config.get<string>('connectionMode', 'embedded');
@@ -79,6 +81,9 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
 				} catch (err: any) {
 					vscode.window.showErrorMessage('Failed to populate demo graph: ' + err.message);
 				}
+			} else if (message.command === 'fullRefresh') {
+				// Execute the full refresh command
+				vscode.commands.executeCommand('codegraph.fullRefresh');
 			}
 		});
 
@@ -141,6 +146,7 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
 		const password = config.get<string>('password', '');
 		const graphName = config.get<string>('graphName', 'default');
 		const dataPath = config.get<string>('dataPath', '${workspaceFolder}/.codegraph');
+		const watchFolders = config.get<string>('watchFolders', 'src');
 
 		return `<!DOCTYPE html>
 <html lang="en">
@@ -240,8 +246,13 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
         <input type="text" id="graphName" value="${graphName}" />
     </div>
 
+    <div class="form-group">
+        <label>Watch Folders (comma-separated, relative to workspace)</label>
+        <input type="text" id="watchFolders" value="${watchFolders}" placeholder="e.g., src, test, lib" />
+    </div>
+
 	<button id="applyBtn">Apply Configuration</button>
-	<button id="populateBtn" style="margin-top: 10px; background-color: var(--vscode-button-hoverBackground);">Populate Demo Node</button>
+	<button id="fullRefreshBtn" style="margin-top: 10px; background-color: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);">Full Refresh (Re-index Workspace)</button>
 
 	<script>
 		const vscode = acquireVsCodeApi();
@@ -269,7 +280,8 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
 				port: document.getElementById('port').value,
 				password: document.getElementById('password').value,
 				graphName: document.getElementById('graphName').value,
-				dataPath: document.getElementById('dataPath').value
+				dataPath: document.getElementById('dataPath').value,
+				watchFolders: document.getElementById('watchFolders').value
 			};
 			
 			// Show temporary syncing state
@@ -282,9 +294,10 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
 			});
 		});
 
-		document.getElementById('populateBtn').addEventListener('click', () => {
+
+		document.getElementById('fullRefreshBtn').addEventListener('click', () => {
 			vscode.postMessage({
-				command: 'populateDemo'
+				command: 'fullRefresh'
 			});
 		});
 

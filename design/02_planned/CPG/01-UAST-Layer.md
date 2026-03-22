@@ -4,6 +4,131 @@
 
 The UAST (Universal Abstract Syntax Tree) layer provides a language-agnostic representation of source code structure based on the **Joern CPG specification**. This layer forms the foundation of the Code Property Graph, ensuring consistent node types and relationships across all supported programming languages.
 
+## File System Layer
+
+### Foundation: Project Structure Graph
+
+**Before** parsing code into abstract syntax trees, the UAST layer first indexes the project's file system structure. This creates a foundational graph of directories and files that provides context for all subsequent code analysis.
+
+### File System Indexing Process
+
+```
+Project Root
+     ↓
+File System Watcher (VS Code API)
+     ↓
+Directory/File Events (create, delete, rename)
+     ↓
+File System Graph Nodes (Directory, File)
+     ↓
+FalkorDB Storage
+     ↓
+Code Parsing (UAST nodes link to File nodes)
+```
+
+### File System Node Types
+
+#### Directory Node
+
+Represents a folder in the project structure.
+
+```typescript
+interface DirectoryNode {
+  id: string;                    // Unique identifier
+  label: 'DIRECTORY';            // Node type
+  name: string;                  // Directory name (e.g., "src")
+  path: string;                  // Absolute path
+  relativePath: string;          // Path relative to workspace root
+  createdAt: number;             // Unix timestamp
+  modifiedAt: number;            // Unix timestamp
+}
+```
+
+#### File Node
+
+Represents a source file or resource in the project.
+
+```typescript
+interface FileNode {
+  id: string;                    // Unique identifier
+  label: 'FILE';                 // Node type
+  name: string;                  // File name with extension (e.g., "app.ts")
+  path: string;                  // Absolute path
+  relativePath: string;          // Path relative to workspace root
+  extension: string;             // File extension (e.g., ".ts", ".py")
+  language: string;              // Detected language (e.g., "typescript", "python")
+  size: number;                  // File size in bytes
+  createdAt: number;             // Unix timestamp
+  modifiedAt: number;            // Unix timestamp
+  isParsed: boolean;             // Whether UAST has been generated
+}
+```
+
+### File System Edge Types
+
+| Edge Type | Description | Example |
+|-----------|-------------|---------|
+| `CONTAINS` | Directory contains file/subdirectory | `src/` → `main.ts` |
+| `PARENT` | Child to parent directory relationship | `utils/` → `src/` |
+
+### File System Events
+
+The extension monitors these VS Code file system events:
+
+1. **File Created** (`workspace.onDidCreateFiles`)
+   - Create `FILE` node
+   - Create `CONTAINS` edge from parent directory
+   - Queue file for parsing if it's a supported language
+
+2. **File Deleted** (`workspace.onDidDeleteFiles`)
+   - Remove `FILE` node and all UAST nodes within it
+   - Remove all edges connected to the file
+   - Remove from parsing queue
+
+3. **File Renamed** (`workspace.onDidRenameFiles`)
+   - Update `FILE` node path properties
+   - Update all UAST nodes' file references
+   - Re-detect language if extension changed
+
+4. **Directory Created**
+   - Create `DIRECTORY` node
+   - Create `CONTAINS` edge from parent directory
+   - Recursively index child files/directories
+
+5. **Directory Deleted**
+   - Recursively remove all child nodes
+   - Remove all edges
+
+### Example File System Graph
+
+```cypher
+// Project structure:
+// project-root/
+//   src/
+//     services/
+//       auth.ts
+//     app.ts
+//   tests/
+//     app.test.ts
+
+// Graph representation:
+(root:DIRECTORY {name: "project-root", relativePath: "/"})
+(src:DIRECTORY {name: "src", relativePath: "/src"})
+(services:DIRECTORY {name: "services", relativePath: "/src/services"})
+(tests:DIRECTORY {name: "tests", relativePath: "/tests"})
+(authFile:FILE {name: "auth.ts", language: "typescript"})
+(appFile:FILE {name: "app.ts", language: "typescript"})
+(testFile:FILE {name: "app.test.ts", language: "typescript"})
+
+// Relationships:
+(root)-[:CONTAINS]->(src)
+(root)-[:CONTAINS]->(tests)
+(src)-[:CONTAINS]->(services)
+(src)-[:CONTAINS]->(appFile)
+(services)-[:CONTAINS]->(authFile)
+(tests)-[:CONTAINS]->(testFile)
+```
+
 ## Joern CPG Specification
 
 ### Reference: [cpg.joern.io](https://cpg.joern.io/)
@@ -14,6 +139,18 @@ Joern defines a comprehensive set of universal node types that represent program
 2. **Standard query interface**: Uniform queries work across all languages
 3. **Proven architecture**: Based on academic research and production usage
 4. **Extensibility**: Clear guidelines for adding new languages
+
+### File System to Code Linking
+
+All Joern UAST nodes (METHOD, TYPE_DECL, etc.) are linked to their containing `FILE` node:
+
+```cypher
+// Example: Method belongs to a file
+(method:METHOD {name: "authenticate", fullName: "auth.authenticate"})
+(file:FILE {name: "auth.ts"})
+
+(method)-[:DEFINED_IN]->(file)
+```
 
 ### Core Joern Node Types
 
@@ -94,6 +231,16 @@ interface UASTNode {
 ```
 
 ### Joern Edge Types (AST Layer)
+
+#### File System Edges
+
+| Edge Type | Description | Example |
+|-----------|-------------|---------|
+| `CONTAINS` | Directory contains file/subdirectory | Directory → File/Directory |
+| `PARENT` | Child to parent directory relationship | Directory → Parent Directory |
+| `DEFINED_IN` | Code node defined in file | METHOD/TYPE_DECL → File |
+
+#### Code Structure Edges
 
 | Edge Type | Description | Example |
 |-----------|-------------|---------|
@@ -275,6 +422,38 @@ Each adapter uses tree-sitter query patterns to extract constructs:
 
 ## Incremental Parsing Strategy
 
+### Initial Workspace Indexing
+
+When the extension first activates:
+
+1. **Discover workspace files**: Use `workspace.findFiles()` to locate all source files
+2. **Build file system graph**: Create `DIRECTORY` and `FILE` nodes for entire project structure
+3. **Queue files for parsing**: Add all discovered source files to parsing queue
+4. **Background parsing**: Process queue asynchronously to avoid blocking VS Code
+5. **Progress reporting**: Show progress notification to user
+
+```typescript
+async function indexWorkspace(workspaceRoot: string): Promise<void> {
+  // Find all source files (exclude node_modules, .git, etc.)
+  const files = await vscode.workspace.findFiles(
+    '**/*.{ts,js,py,go,rs,java}',
+    '**/node_modules/**'
+  );
+
+  // Build directory structure
+  const directories = extractDirectories(files);
+  await createDirectoryNodes(directories);
+
+  // Create file nodes
+  for (const file of files) {
+    await createFileNode(file);
+  }
+
+  // Queue for parsing
+  parsingQueue.enqueue(files);
+}
+```
+
 ### Trigger: File Save Events
 
 **Why Save, Not Keystroke?**
@@ -282,6 +461,12 @@ Each adapter uses tree-sitter query patterns to extract constructs:
 - Ensures only complete, intentional changes are processed
 - Developer can make multiple edits before triggering update
 - Predictable performance characteristics
+
+**File System Events as Triggers:**
+- File save events trigger UAST re-parsing for that file
+- File creation events add new `FILE` node and queue for initial parsing
+- File deletion events remove all associated UAST nodes
+- Directory events propagate to contained files
 
 ### Update Pipeline
 
