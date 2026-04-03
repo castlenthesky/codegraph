@@ -1,3 +1,6 @@
+.tmp/
+responses.csv
+
 # dependencies (bun install)
 node_modules
 .vscode-test/

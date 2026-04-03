@@ -1,31 +1,23 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { FalkorDBService } from './FalkorDBService';
-import type { DirectoryNode, GraphEdge } from '../models/GraphNodes';
-import { createDirectoryNode, createFileNode, generateId, shouldIgnorePath } from '../utils/nodeFactory';
+import type { IGraphStore } from '../../types/storage';
+import type { IFileScanner } from '../../types/filesystem';
+import type { DirectoryNode, GraphEdge } from '../../types/nodes';
+import { createDirectoryNode, createFileNode, generateId, shouldIgnorePath } from '../../graph/nodes/nodeFactory';
 
 /**
- * Service responsible for scanning the physical disk and transforming directory
- * layouts into foundational Universal Abstract Syntax Tree (UAST) nodes.
+ * Scans the physical workspace disk and ingests directory/file nodes into the graph store.
  *
- * Interactions:
- * - `FalkorDBService`: Persists parsed directories and files.
- * - `GraphSynchronizer`: Utilizes this service to ingest or refresh newly discovered
- *   files identified during the "Stale-While-Revalidate" background sweep.
+ * Used for initial full workspace indexing. For live change tracking, see FileWatcher.
  */
-export class FileSystemIndexer {
-	private dbService: FalkorDBService;
+export class FileScanner implements IFileScanner {
 	private workspaceRoot: string;
 
-	constructor() {
-		this.dbService = FalkorDBService.getInstance();
+	constructor(private readonly store: IGraphStore) {
 		this.workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
 	}
 
-	/**
-	 * Index the workspace based on configured watch folders
-	 */
 	public async indexWorkspace(): Promise<void> {
 		if (!this.workspaceRoot) {
 			vscode.window.showWarningMessage('No workspace folder found. Please open a folder to index.');
@@ -42,13 +34,9 @@ export class FileSystemIndexer {
 			cancellable: false
 		}, async (progress) => {
 			try {
-				// Connect to database
-				await this.dbService.connect();
+				await this.store.connect();
+				await this.store.clearGraph();
 
-				// Clear existing graph (for fresh indexing)
-				await this.dbService.clearGraph();
-
-				// Create workspace root node
 				const workspaceName = path.basename(this.workspaceRoot);
 				const workspaceRootNode: DirectoryNode = {
 					id: 'workspace-root',
@@ -59,11 +47,10 @@ export class FileSystemIndexer {
 					createdAt: Date.now(),
 					modifiedAt: Date.now()
 				};
-				await this.dbService.createNode(workspaceRootNode);
+				await this.store.createNode(workspaceRootNode);
 
 				let totalFiles = 0;
 
-				// Index each watched folder
 				for (const folder of watchFolders) {
 					const folderPath = path.join(this.workspaceRoot, folder);
 
@@ -77,14 +64,14 @@ export class FileSystemIndexer {
 					progress.report({ message: `Indexing ${folder}...` });
 					const count = await this.indexDirectory(folderPath, folder);
 					totalFiles += count;
-					// Connect watch folder to workspace root
+
 					const watchFolderId = generateId(folder);
 					const edge: GraphEdge = {
 						source: 'workspace-root',
 						target: watchFolderId,
 						type: 'CONTAINS'
 					};
-					await this.dbService.createEdge(edge);
+					await this.store.createEdge(edge);
 				}
 
 				vscode.window.showInformationMessage(`Successfully indexed ${totalFiles} files!`);
@@ -94,21 +81,15 @@ export class FileSystemIndexer {
 		});
 	}
 
-	/**
-	 * Recursively index a directory
-	 */
 	private async indexDirectory(absolutePath: string, relativePath: string): Promise<number> {
 		let fileCount = 0;
 
-		// Create directory node
 		const dirNode = await createDirectoryNode(absolutePath, relativePath);
-		await this.dbService.createNode(dirNode);
+		await this.store.createNode(dirNode);
 
-		// Read directory contents
 		const entries = await fs.promises.readdir(absolutePath, { withFileTypes: true });
 
 		for (const entry of entries) {
-			// Skip hidden files and node_modules
 			if (shouldIgnorePath(path.join(absolutePath, entry.name))) {
 				continue;
 			}
@@ -117,30 +98,26 @@ export class FileSystemIndexer {
 			const entryRelPath = path.join(relativePath, entry.name);
 
 			if (entry.isDirectory()) {
-				// Recursively index subdirectory
 				fileCount += await this.indexDirectory(entryAbsPath, entryRelPath);
 
-				// Create CONTAINS edge from parent to child directory
 				const childDirId = generateId(entryRelPath);
 				const edge: GraphEdge = {
 					source: dirNode.id,
 					target: childDirId,
 					type: 'CONTAINS'
 				};
-				await this.dbService.createEdge(edge);
+				await this.store.createEdge(edge);
 			} else if (entry.isFile()) {
-				// Create file node
 				const fileNode = await createFileNode(entryAbsPath, entryRelPath);
-				await this.dbService.createNode(fileNode);
+				await this.store.createNode(fileNode);
 				fileCount++;
 
-				// Create CONTAINS edge from directory to file
 				const edge: GraphEdge = {
 					source: dirNode.id,
 					target: fileNode.id,
 					type: 'CONTAINS'
 				};
-				await this.dbService.createEdge(edge);
+				await this.store.createEdge(edge);
 			}
 		}
 

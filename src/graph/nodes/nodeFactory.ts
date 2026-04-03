@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { DirectoryNode, FileNode } from '../models/GraphNodes';
+import type { DirectoryNode, FileNode } from '../../types/nodes';
 
 const LANG_MAP: Record<string, string> = {
 	'.ts': 'typescript',

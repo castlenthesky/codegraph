@@ -1,36 +1,31 @@
 import * as vscode from 'vscode';
-import { FalkorDBService } from '../services/FalkorDBService';
-import { GraphDiffService, type GraphData, type IncrementalPatch } from '../services/GraphDiffService';
+import type { IGraphStore } from '../types/storage';
+import type { IGraphViewProvider } from '../types/visualization';
+import { DiffEngine } from '../services/sync/DiffEngine';
+import type { GraphData, IncrementalPatch } from '../services/sync/DiffEngine';
 
 /**
- * VS Code Webview Provider that manages the visualization of the Code Property Graph.
+ * VS Code Webview Provider for the force-directed Code Property Graph visualization.
  *
- * Interactions:
- * - Listens for external events (like via `GraphSynchronizer` or `AtomicUpdate`) to trigger
- *   visual updates when the underlying graph data correctly modifies.
- * - Supports incremental updates using GraphDiffService to avoid full graph redraws.
+ * Supports incremental updates via DiffEngine to avoid full graph redraws.
+ * Implements IGraphViewProvider so it can be injected into FileWatcher and Reconciler.
  */
-export class GraphViewProvider implements vscode.WebviewViewProvider {
+export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphViewProvider {
 	private _view?: vscode.WebviewView;
-	private dbService: FalkorDBService;
-	private diffService: GraphDiffService;
 	private currentGraphData: GraphData | null = null;
 
-	constructor() {
-		this.dbService = FalkorDBService.getInstance();
-		this.diffService = new GraphDiffService();
-	}
+	constructor(
+		private readonly store: IGraphStore,
+		private readonly diffEngine: DiffEngine
+	) {}
 
 	public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
 		this._view = webviewView;
 		webviewView.webview.options = { enableScripts: true };
-		
-		// Initialize the HTML shell once
 		this._view.webview.html = this.getHtml();
 
 		this.updateView();
 
-		// Listen for refresh requests from the webview
 		webviewView.webview.onDidReceiveMessage(async (message) => {
 			if (message.command === 'refresh') {
 				await this.refresh();
@@ -38,31 +33,20 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
 		});
 	}
 
-	/**
-	 * Refresh the graph view (called by FileSystemWatcher)
-	 * Uses incremental updates when possible to avoid full redraw
-	 */
 	public async refresh(): Promise<void> {
 		await this.updateViewIncremental();
 	}
 
-	/**
-	 * Update the webview with latest data from FalkorDB (full replace)
-	 * Use this for initial load or force refresh
-	 */
 	private async updateView(): Promise<void> {
 		if (!this._view) {
 			return;
 		}
 
 		try {
-			// Query FalkorDB for all nodes and edges
-			const { nodes: dbNodes, edges: dbEdges } = await this.dbService.getAllNodesAndEdges();
+			const { nodes: dbNodes, edges: dbEdges } = await this.store.getAllNodesAndEdges();
 
-			// Store current graph data for future diff calculations
 			this.currentGraphData = { nodes: dbNodes, edges: dbEdges };
 
-			// Transform to force-graph format
 			const nodes = dbNodes.map(node => ({
 				id: node.id,
 				name: node.name,
@@ -75,67 +59,49 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
 				target: edge.target
 			}));
 
-			const graphData = { nodes, links };
-
-			// Send message to dynamically update the graph
-			this._view.webview.postMessage({ command: 'updateGraph', data: graphData });
+			this._view.webview.postMessage({ command: 'updateGraph', data: { nodes, links } });
 
 		} catch (error: any) {
 			console.error('Error updating graph view:', error);
-			// Show empty graph on error
 			this.currentGraphData = { nodes: [], edges: [] };
-			const graphData = { nodes: [], links: [] };
-			this._view.webview.postMessage({ command: 'updateGraph', data: graphData });
+			this._view.webview.postMessage({ command: 'updateGraph', data: { nodes: [], links: [] } });
 		}
 	}
 
-	/**
-	 * Update the webview with incremental changes from FalkorDB
-	 * Computes diff and sends only the changes to avoid full redraw
-	 */
 	private async updateViewIncremental(): Promise<void> {
 		if (!this._view) {
 			return;
 		}
 
 		try {
-			// Query FalkorDB for all nodes and edges
-			const { nodes: dbNodes, edges: dbEdges } = await this.dbService.getAllNodesAndEdges();
+			const { nodes: dbNodes, edges: dbEdges } = await this.store.getAllNodesAndEdges();
 			const newGraphData: GraphData = { nodes: dbNodes, edges: dbEdges };
 
-			// If no previous state, do a full update
 			if (!this.currentGraphData) {
 				this.currentGraphData = newGraphData;
 				await this.updateView();
 				return;
 			}
 
-			// Compute diff between current and new state
-			const diff = this.diffService.computeDiff(this.currentGraphData, newGraphData);
+			const diff = this.diffEngine.computeDiff(this.currentGraphData, newGraphData);
 
-			// If no changes, skip update
-			if (!this.diffService.hasChanges(diff)) {
+			if (!this.diffEngine.hasChanges(diff)) {
 				return;
 			}
 
-			// Update stored state
 			this.currentGraphData = newGraphData;
 
-			// Create incremental patch for webview
-			const patch = this.diffService.createIncrementalPatch(diff);
+			const patch = this.diffEngine.createIncrementalPatch(diff);
 
-			// Send incremental update to webview
 			this._view.webview.postMessage({ command: 'incrementalUpdate', patch });
 
 		} catch (error: any) {
 			console.error('Error updating graph view incrementally:', error);
-			// Fall back to full update on error
 			await this.updateView();
 		}
 	}
 
 	private getHtml() {
-
 		return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -153,7 +119,6 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
     <div id="graph-container"></div>
     <script>
         const elem = document.getElementById('graph-container');
-        // Define theme colors using VS Code CSS vars or fallbacks
         const nodeColor = getComputedStyle(document.body).getPropertyValue('--vscode-symbolIcon-classForeground') || '#d1a33a';
         const linkColor = getComputedStyle(document.body).getPropertyValue('--vscode-editorLineNumber-foreground') || '#858585';
 
@@ -178,23 +143,19 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
             const message = event.data;
 
             if (message.command === 'updateGraph') {
-                // Full graph update (initial load or force refresh)
                 Graph.graphData(message.data);
             }
             else if (message.command === 'incrementalUpdate') {
-                // Incremental update - apply changes without full redraw
                 const patch = message.patch;
                 const { nodes, links } = Graph.graphData();
                 let newNodes = [...nodes];
                 let newLinks = [...links];
 
-                // Remove nodes
                 if (patch.removeNodes && patch.removeNodes.length > 0) {
                     const nodeIdsToRemove = new Set(patch.removeNodes);
                     newNodes = newNodes.filter(n => !nodeIdsToRemove.has(n.id));
                 }
 
-                // Remove links
                 if (patch.removeLinks && patch.removeLinks.length > 0) {
                     const linksToRemove = new Set(
                         patch.removeLinks.map(l => \`\${l.source}|\${l.target}\`)
@@ -205,17 +166,14 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
                     });
                 }
 
-                // Add new nodes
                 if (patch.addNodes && patch.addNodes.length > 0) {
                     newNodes = [...newNodes, ...patch.addNodes];
                 }
 
-                // Add new links
                 if (patch.addLinks && patch.addLinks.length > 0) {
                     newLinks = [...newLinks, ...patch.addLinks];
                 }
 
-                // Update existing links (remove old, add new with updated properties)
                 if (patch.updateLinks && patch.updateLinks.length > 0) {
                     const updateMap = new Map(
                         patch.updateLinks.map(l => [\`\${l.source}|\${l.target}\`, l])
@@ -227,7 +185,6 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
                     });
                 }
 
-                // Update existing nodes
                 if (patch.updateNodes && patch.updateNodes.length > 0) {
                     const updateMap = new Map(patch.updateNodes.map(n => [n.id, n]));
                     newNodes = newNodes.map(node => {
@@ -236,7 +193,6 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
                     });
                 }
 
-                // Apply the updated data with a new object reference to trigger D3 reactivity
                 Graph.graphData({ nodes: newNodes, links: newLinks });
             }
         });

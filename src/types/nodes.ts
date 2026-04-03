@@ -1,6 +1,6 @@
 /**
- * Graph node type definitions based on Joern CPG specification
- * Extended with FILE and DIRECTORY nodes for file system tracking
+ * Graph node type definitions based on Joern CPG specification.
+ * Extended with FILE and DIRECTORY nodes for file system tracking.
  */
 
 export interface BaseNode {

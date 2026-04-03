@@ -1,15 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { FalkorDBService } from './FalkorDBService';
-import type { GraphViewProvider } from '../providers/GraphViewProvider';
-import type { FileNode, GraphEdge } from '../models/GraphNodes';
+import type { IGraphStore } from '../../types/storage';
+import type { IGraphViewProvider } from '../../types/visualization';
+import type { IFileWatcher } from '../../types/filesystem';
+import type { FileNode, GraphEdge } from '../../types/nodes';
 import {
 	createDirectoryNode,
 	createFileNode,
 	generateId,
 	shouldIgnorePath
-} from '../utils/nodeFactory';
+} from '../../graph/nodes/nodeFactory';
 
 interface PendingChange {
 	type: 'create' | 'delete' | 'change' | 'rename';
@@ -25,11 +26,14 @@ interface DeletedDirectoryInfo {
 	timestamp: number;
 }
 
-export class FileSystemWatcher {
-	private dbService: FalkorDBService;
+/**
+ * Watches configured workspace folders for file system changes and keeps
+ * the graph store in sync. Handles debouncing, soft-delete, directory move
+ * detection, and lazy parent directory chain creation.
+ */
+export class FileWatcher implements IFileWatcher {
 	private workspaceRoot: string;
 	private watchers: vscode.Disposable[] = [];
-	private graphViewProvider: GraphViewProvider | undefined;
 
 	// Debouncing support for batched updates
 	private pendingChanges: Map<string, PendingChange> = new Map();
@@ -38,13 +42,15 @@ export class FileSystemWatcher {
 
 	// Directory move tracking (to handle reconnection of orphaned children)
 	private recentlyDeletedDirs: Map<string, DeletedDirectoryInfo> = new Map();
-	private readonly DIR_CACHE_TTL_MS = 5000; // 5 seconds
+	private readonly DIR_CACHE_TTL_MS = 5000;
 
 	// [HI-003] Allowlist for labels used in Cypher queries (FalkorDB doesn't support parameterized labels)
 	private static readonly VALID_LABELS = new Set(['DIRECTORY', 'FILE']);
 
-	constructor() {
-		this.dbService = FalkorDBService.getInstance();
+	constructor(
+		private readonly store: IGraphStore,
+		private readonly graphView: IGraphViewProvider
+	) {
 		const folders = vscode.workspace.workspaceFolders;
 		// [MD-005] Warn on multi-root workspaces — only the first folder is watched
 		if (folders && folders.length > 1) {
@@ -55,16 +61,6 @@ export class FileSystemWatcher {
 		this.workspaceRoot = folders?.[0]?.uri.fsPath || '';
 	}
 
-	/**
-	 * Set the graph view provider to notify on changes
-	 */
-	public setGraphViewProvider(provider: GraphViewProvider): void {
-		this.graphViewProvider = provider;
-	}
-
-	/**
-	 * Start watching configured folders
-	 */
 	public startWatching(): vscode.Disposable[] {
 		const config = vscode.workspace.getConfiguration('falkordb');
 		const watchFoldersStr = config.get<string>('watchFolders', 'src');
@@ -91,9 +87,6 @@ export class FileSystemWatcher {
 		return this.watchers;
 	}
 
-	/**
-	 * Queue a file system change for batched processing
-	 */
 	private queueChange(type: 'create' | 'delete' | 'change' | 'rename', uri: vscode.Uri, newUri?: vscode.Uri): void {
 		// [LO-001] Consistently exclude hidden files and node_modules at the entry point
 		if (type !== 'rename' && shouldIgnorePath(uri.fsPath)) {
@@ -103,13 +96,11 @@ export class FileSystemWatcher {
 		const key = uri.fsPath;
 
 		if (type === 'rename' && newUri) {
-			// Clear any pending independent creates/deletes for these paths
 			this.pendingChanges.delete(uri.fsPath);
 			this.pendingChanges.delete(newUri.fsPath);
 			this.pendingChanges.set(`rename:${key}`, { type, uri, newUri, timestamp: Date.now() });
 		} else {
 			const existing = this.pendingChanges.get(key);
-			// Prevent overriding a rename if delete/create fires subsequently
 			if (existing && existing.type === 'rename') { return; }
 
 			if (existing) {
@@ -121,37 +112,26 @@ export class FileSystemWatcher {
 					// [MD-003] Keep 'create' type but refresh timestamp so metadata is fresh at processing time
 					existing.timestamp = Date.now();
 				}
-				// Other combinations: keep existing (no-op)
 			} else {
 				this.pendingChanges.set(key, { type, uri, timestamp: Date.now() });
 			}
 		}
 
-		// Reset debounce timer
 		if (this.debounceTimer) {
 			clearTimeout(this.debounceTimer);
 		}
 
-		// Schedule batch processing
 		this.debounceTimer = setTimeout(() => {
 			this.processBatch();
 		}, this.DEBOUNCE_DELAY_MS);
 	}
 
-	/**
-	 * Process all queued changes as a batch
-	 */
 	private async processBatch(): Promise<void> {
 		if (this.pendingChanges.size === 0) {
 			return;
 		}
 
-		// Sort changes to construct topological parent hierarchies correctly:
-		// Renames first (update IDs before other operations reference them),
-		// then deletes (soft-delete before potential re-creation handles move detection),
-		// then changes (metadata updates on stable nodes),
-		// then creates (may reference parent nodes created by earlier renames).
-		// Within the same type, shorter paths first ensures parents are processed before children. [LO-003]
+		// Sort: renames first, then deletes, changes, creates; shorter paths first within type [LO-003]
 		const changes = Array.from(this.pendingChanges.values());
 		changes.sort((a, b) => {
 			const typeRank = { 'rename': 0, 'delete': 1, 'change': 2, 'create': 3 };
@@ -164,7 +144,6 @@ export class FileSystemWatcher {
 		this.pendingChanges.clear();
 		this.debounceTimer = null;
 
-		// Process each change
 		for (const change of changes) {
 			try {
 				switch (change.type) {
@@ -195,16 +174,13 @@ export class FileSystemWatcher {
 		await this.hardDeleteExpiredNodes();
 
 		// Notify graph view once for the entire batch
-		this.notifyGraphRefresh();
+		this.graphView.refresh();
 	}
 
-	/**
-	 * Permanently delete any nodes that were soft-deleted more than TTL ms ago
-	 */
 	private async hardDeleteExpiredNodes(): Promise<void> {
 		const threshold = Date.now() - this.DIR_CACHE_TTL_MS;
 		try {
-			await this.dbService.query(
+			await this.store.query(
 				`MATCH (n) WHERE n.isSoftDeleted IS NOT NULL AND n.isSoftDeleted < $threshold DETACH DELETE n`,
 				{ threshold }
 			);
@@ -213,9 +189,6 @@ export class FileSystemWatcher {
 		}
 	}
 
-	/**
-	 * Handle atomic file/directory rename
-	 */
 	private async handleFileRenamed(oldUri: vscode.Uri, newUri: vscode.Uri): Promise<void> {
 		try {
 			const oldRelativePath = path.relative(this.workspaceRoot, oldUri.fsPath);
@@ -227,7 +200,7 @@ export class FileSystemWatcher {
 
 			await this.updateNodePath(oldId, newId, newRelativePath, newUri.fsPath);
 
-			await this.dbService.query(`MATCH ()-[r:CONTAINS]->(n {id: $newId}) DELETE r`, { newId });
+			await this.store.query(`MATCH ()-[r:CONTAINS]->(n {id: $newId}) DELETE r`, { newId });
 			await this.createParentEdge(newRelativePath, newId);
 
 			if (isDirectory) {
@@ -249,21 +222,18 @@ export class FileSystemWatcher {
 			const absolutePath = uri.fsPath;
 			const relativePath = path.relative(this.workspaceRoot, absolutePath);
 
-			// Stat async to determine if this is a file or directory [CR-002]
 			let stats: fs.Stats;
 			try {
 				stats = await fs.promises.stat(absolutePath);
 			} catch {
-				// Path no longer exists (race condition); skip
 				return;
 			}
 
 			if (stats.isDirectory()) {
 				const dirNode = await createDirectoryNode(absolutePath, relativePath);
-				await this.dbService.createNode(dirNode);
+				await this.store.createNode(dirNode);
 
-				// Strip any soft delete ghosts if resurrected
-				await this.dbService.query(`MATCH (n {id: $id}) REMOVE n.isSoftDeleted`, { id: dirNode.id });
+				await this.store.query(`MATCH (n {id: $id}) REMOVE n.isSoftDeleted`, { id: dirNode.id });
 
 				await this.createParentEdge(relativePath, dirNode.id);
 				await this.reconnectOrphanedChildren(dirNode.id, relativePath, absolutePath);
@@ -272,10 +242,9 @@ export class FileSystemWatcher {
 				await this.ensureParentDirectoryChain(relativePath);
 
 				const fileNode = await createFileNode(absolutePath, relativePath);
-				await this.dbService.createNode(fileNode);
+				await this.store.createNode(fileNode);
 
-				// Strip any soft delete ghosts
-				await this.dbService.query(`MATCH (n {id: $id}) REMOVE n.isSoftDeleted`, { id: fileNode.id });
+				await this.store.query(`MATCH (n {id: $id}) REMOVE n.isSoftDeleted`, { id: fileNode.id });
 
 				await this.createParentEdge(relativePath, fileNode.id);
 			}
@@ -291,7 +260,6 @@ export class FileSystemWatcher {
 	 * This compensates for VS Code's FileSystemWatcher not firing create events for directories.
 	 */
 	private async ensureParentDirectoryChain(childRelativePath: string): Promise<void> {
-		// Collect all ancestor relative paths (excluding the child itself)
 		const segments = childRelativePath.split(path.sep);
 		const ancestorRelPaths: string[] = [];
 		for (let i = 1; i < segments.length; i++) {
@@ -302,11 +270,10 @@ export class FileSystemWatcher {
 			return;
 		}
 
-		// Batch check which ancestors already exist in the graph
 		const ancestorIds = ancestorRelPaths.map(p => generateId(p));
 		let existingIds: Set<string>;
 		try {
-			const result = await this.dbService.query(
+			const result = await this.store.query(
 				'MATCH (n) WHERE n.id IN $ids RETURN n.id as id',
 				{ ids: ancestorIds }
 			);
@@ -315,7 +282,6 @@ export class FileSystemWatcher {
 			existingIds = new Set();
 		}
 
-		// Create any missing ancestors (shallowest first)
 		for (let i = 0; i < ancestorRelPaths.length; i++) {
 			const dirRelPath = ancestorRelPaths[i];
 			const dirId = ancestorIds[i];
@@ -325,8 +291,8 @@ export class FileSystemWatcher {
 			const dirAbsPath = path.join(this.workspaceRoot, dirRelPath);
 			try {
 				const dirNode = await createDirectoryNode(dirAbsPath, dirRelPath);
-				await this.dbService.createNode(dirNode);
-				await this.dbService.query(`MATCH (n {id: $id}) REMOVE n.isSoftDeleted`, { id: dirNode.id });
+				await this.store.createNode(dirNode);
+				await this.store.query(`MATCH (n {id: $id}) REMOVE n.isSoftDeleted`, { id: dirNode.id });
 				await this.createParentEdge(dirRelPath, dirNode.id);
 			} catch {
 				// Directory may not exist on disk (race); skip
@@ -334,21 +300,15 @@ export class FileSystemWatcher {
 		}
 	}
 
-	/**
-	 * Handle file/directory deletion
-	 */
 	private async handleFileDeleted(uri: vscode.Uri): Promise<void> {
 		try {
 			const relativePath = path.relative(this.workspaceRoot, uri.fsPath);
 			const nodeId = generateId(relativePath);
 
-			// Check if this is a directory deletion
 			const isDirectory = await this.isDirectoryNode(nodeId);
 			if (isDirectory) {
-				// Get all descendants before deletion
 				const descendants = await this.getDescendantNodes(nodeId, relativePath);
 
-				// Cache the directory info for potential move reconnection
 				this.recentlyDeletedDirs.set(nodeId, {
 					id: nodeId,
 					path: uri.fsPath,
@@ -360,15 +320,14 @@ export class FileSystemWatcher {
 
 				for (const descendant of descendants) {
 					console.log(`Soft-deleting descendant: ${descendant.id}`);
-					await this.dbService.query(
+					await this.store.query(
 						`MATCH (n {id: $id}) SET n.isSoftDeleted = $time`,
 						{ id: descendant.id, time: Date.now() }
 					);
 				}
 			}
 
-			// Soft delete the node itself
-			await this.dbService.query(
+			await this.store.query(
 				`MATCH (n {id: $id}) SET n.isSoftDeleted = $time`,
 				{ id: nodeId, time: Date.now() }
 			);
@@ -401,8 +360,7 @@ export class FileSystemWatcher {
 
 			const nodeId = generateId(relativePath);
 
-			// Update file metadata and mark for re-parse so the CPG pipeline picks up content changes
-			await this.dbService.updateNode(nodeId, {
+			await this.store.updateNode(nodeId, {
 				size: stats.size,
 				modifiedAt: stats.mtimeMs,
 				isParsed: false
@@ -413,9 +371,6 @@ export class FileSystemWatcher {
 		}
 	}
 
-	/**
-	 * Create CONTAINS edge from parent directory to child
-	 */
 	private async createParentEdge(childRelativePath: string, childId: string): Promise<void> {
 		const parentRelPath = path.dirname(childRelativePath);
 
@@ -433,23 +388,12 @@ export class FileSystemWatcher {
 			type: 'CONTAINS'
 		};
 
-		await this.dbService.createEdge(edge);
+		await this.store.createEdge(edge);
 	}
 
-	/**
-	 * Notify graph view to refresh
-	 */
-	private notifyGraphRefresh(): void {
-		// [MD-001] graphViewProvider is now properly typed; no runtime duck-type check needed
-		this.graphViewProvider?.refresh();
-	}
-
-	/**
-	 * Check if a node in the database is a directory
-	 */
 	private async isDirectoryNode(nodeId: string): Promise<boolean> {
 		try {
-			const result = await this.dbService.query(
+			const result = await this.store.query(
 				'MATCH (n {id: $id}) RETURN n.label as label',
 				{ id: nodeId }
 			);
@@ -459,12 +403,9 @@ export class FileSystemWatcher {
 		}
 	}
 
-	/**
-	 * Get all descendant nodes of a directory (recursively)
-	 */
 	private async getDescendantNodes(dirId: string, dirRelativePath: string): Promise<Array<{ id: string; relativePath: string; isDirectory: boolean }>> {
 		try {
-			const result = await this.dbService.query(
+			const result = await this.store.query(
 				`MATCH (parent {id: $id})-[:CONTAINS*]->(descendant)
 				 RETURN descendant.id as id, descendant.relativePath as relativePath, descendant.label as label`,
 				{ id: dirId }
@@ -481,12 +422,8 @@ export class FileSystemWatcher {
 		}
 	}
 
-	/**
-	 * Reconnect orphaned children when a directory is created (handles directory-move detection)
-	 */
 	private async reconnectOrphanedChildren(newDirId: string, newRelativePath: string, newAbsolutePath: string): Promise<void> {
 		try {
-			// [CR-002] Use async readdir
 			let entries: fs.Dirent[];
 			try {
 				entries = await fs.promises.readdir(newAbsolutePath, { withFileTypes: true });
@@ -494,7 +431,6 @@ export class FileSystemWatcher {
 				return;
 			}
 
-			// Filter ignored paths up-front [LO-001]
 			const relevantEntries = entries.filter(e => !shouldIgnorePath(path.join(newAbsolutePath, e.name)));
 
 			// First, try cache-based reconnection (more accurate than name-only matching)
@@ -515,9 +451,9 @@ export class FileSystemWatcher {
 					const updated = await this.updateNodePath(descendant.id, childId, childRelativePath, childAbsPath);
 					if (!updated) {
 						if (descendant.isDirectory) {
-							await this.dbService.createNode(await createDirectoryNode(childAbsPath, childRelativePath));
+							await this.store.createNode(await createDirectoryNode(childAbsPath, childRelativePath));
 						} else {
-							await this.dbService.createNode(await createFileNode(childAbsPath, childRelativePath));
+							await this.store.createNode(await createFileNode(childAbsPath, childRelativePath));
 						}
 					}
 
@@ -535,13 +471,11 @@ export class FileSystemWatcher {
 			}
 
 			// [HI-001] Fallback: batch queries instead of N+1 per entry
-			// Collect all expected child IDs
 			const allChildIds = relevantEntries.map(e => generateId(path.join(newRelativePath, e.name)));
 
-			// Single batch existence check
 			let existingIds: Set<string>;
 			try {
-				const existResult = await this.dbService.query(
+				const existResult = await this.store.query(
 					'MATCH (n) WHERE n.id IN $ids RETURN n.id as id',
 					{ ids: allChildIds }
 				);
@@ -550,7 +484,6 @@ export class FileSystemWatcher {
 				existingIds = new Set();
 			}
 
-			// Collect entries that need orphan search
 			const missingEntries = relevantEntries.filter(
 				e => !existingIds.has(generateId(path.join(newRelativePath, e.name)))
 			);
@@ -559,11 +492,10 @@ export class FileSystemWatcher {
 				return;
 			}
 
-			// Single batch orphan query for all missing entries
 			const missingNames = missingEntries.map(e => e.name);
 			let orphanRows: Array<{ id: string; name: string; relativePath: string; label: string }> = [];
 			try {
-				const orphanResult = await this.dbService.query(
+				const orphanResult = await this.store.query(
 					`MATCH (n)
 					 WHERE n.isSoftDeleted IS NOT NULL
 					   AND n.name IN $names
@@ -576,7 +508,6 @@ export class FileSystemWatcher {
 				orphanRows = [];
 			}
 
-			// Build a lookup: name -> first orphan (for files, prefer extension match)
 			const orphanByName = new Map<string, { id: string; name: string; relativePath: string; label: string }>();
 			for (const row of orphanRows) {
 				if (!orphanByName.has(row.name)) {
@@ -597,9 +528,9 @@ export class FileSystemWatcher {
 					const updated = await this.updateNodePath(orphan.id, childId, childRelativePath, childAbsPath);
 					if (!updated) {
 						if (entry.isDirectory()) {
-							await this.dbService.createNode(await createDirectoryNode(childAbsPath, childRelativePath));
+							await this.store.createNode(await createDirectoryNode(childAbsPath, childRelativePath));
 						} else {
-							await this.dbService.createNode(await createFileNode(childAbsPath, childRelativePath));
+							await this.store.createNode(await createFileNode(childAbsPath, childRelativePath));
 						}
 					}
 					await this.createParentEdge(childRelativePath, childId);
@@ -611,13 +542,12 @@ export class FileSystemWatcher {
 						}
 					}
 				} else {
-					// Completely new untracked entry — register it
 					if (entry.isDirectory()) {
-						await this.dbService.createNode(await createDirectoryNode(childAbsPath, childRelativePath));
+						await this.store.createNode(await createDirectoryNode(childAbsPath, childRelativePath));
 						await this.createParentEdge(childRelativePath, childId);
 						await this.reconnectOrphanedChildren(childId, childRelativePath, childAbsPath);
 					} else if (entry.isFile()) {
-						await this.dbService.createNode(await createFileNode(childAbsPath, childRelativePath));
+						await this.store.createNode(await createFileNode(childAbsPath, childRelativePath));
 						await this.createParentEdge(childRelativePath, childId);
 					}
 				}
@@ -636,7 +566,7 @@ export class FileSystemWatcher {
 	private async findOrphanedNode(name: string, isDirectory: boolean): Promise<{ id: string; relativePath: string } | null> {
 		try {
 			const label = isDirectory ? 'DIRECTORY' : 'FILE';
-			if (!FileSystemWatcher.VALID_LABELS.has(label)) {
+			if (!FileWatcher.VALID_LABELS.has(label)) {
 				throw new Error(`Invalid label: ${label}`);
 			}
 
@@ -661,7 +591,7 @@ export class FileSystemWatcher {
 				params = { name };
 			}
 
-			const result = await this.dbService.query(query, params);
+			const result = await this.store.query(query, params);
 			if (result.data && result.data.length > 0) {
 				return {
 					id: result.data[0].id,
@@ -675,12 +605,9 @@ export class FileSystemWatcher {
 		}
 	}
 
-	/**
-	 * Update a node's ID and path properties
-	 */
 	private async updateNodePath(oldId: string, newId: string, newRelativePath: string, newAbsolutePath: string): Promise<boolean> {
 		try {
-			const result = await this.dbService.query(
+			const result = await this.store.query(
 				`MATCH (n {id: $oldId})
 				 SET n.id = $newId, n.relativePath = $newRelativePath, n.path = $newAbsolutePath
 				 REMOVE n.isSoftDeleted
@@ -696,12 +623,9 @@ export class FileSystemWatcher {
 		}
 	}
 
-	/**
-	 * Recursively update paths for all descendants of a moved directory
-	 */
 	private async updateDescendantPaths(oldParentId: string, oldParentRelPath: string, newParentRelPath: string): Promise<void> {
 		try {
-			const result = await this.dbService.query(
+			const result = await this.store.query(
 				`MATCH (parent {id: $id})-[:CONTAINS*]->(descendant)
 				 RETURN descendant`,
 				{ id: oldParentId }
@@ -731,9 +655,6 @@ export class FileSystemWatcher {
 		}
 	}
 
-	/**
-	 * Clean up old deleted directory cache entries
-	 */
 	private cleanupDeletedDirsCache(): void {
 		const now = Date.now();
 		const keysToDelete: string[] = [];
@@ -752,8 +673,6 @@ export class FileSystemWatcher {
 	/**
 	 * Stop watching and dispose resources.
 	 * [MD-004] Fire-and-forget flush of pending changes before disposal.
-	 * processBatch() copies and clears pendingChanges synchronously at its start,
-	 * so this is safe even though dispose() is synchronous.
 	 */
 	public dispose(): void {
 		if (this.debounceTimer) {
@@ -761,7 +680,6 @@ export class FileSystemWatcher {
 			this.debounceTimer = null;
 		}
 
-		// Best-effort flush of any queued changes before the extension shuts down
 		if (this.pendingChanges.size > 0) {
 			this.processBatch().catch(err => console.error('Error flushing pending changes on dispose:', err));
 		}

@@ -97,6 +97,58 @@ CodeGraph uses a multi-layered architecture:
 4. **Storage Layer**: FalkorDB graph database integration
 5. **Visualization Layer**: Interactive webview with force-directed graph rendering
 
+### Project Structure
+
+```
+src/
+  extension.ts                 -- Thin entry point (calls bootstrap)
+  bootstrap.ts                 -- Composition root: DI wiring, startup sequencing
+
+  types/                       -- Interfaces and type definitions (no implementations)
+    nodes.ts                   -- GraphNode, GraphEdge, FileNode, DirectoryNode, EdgeType
+    storage.ts                 -- IGraphStore interface
+    visualization.ts           -- IGraphViewProvider interface
+    parsing.ts                 -- IParser, ILanguageAdapter (future tree-sitter)
+    sync.ts                    -- IReconciler interface
+    filesystem.ts              -- IFileWatcher, IFileScanner interfaces
+
+  graph/                       -- Graph construction (the "what")
+    nodes/
+      nodeFactory.ts           -- Node/edge creation, language detection, path utilities
+    cpg/                       -- Code Property Graph layers (extension points)
+      uast/                    -- Layer 1: Universal AST (tree-sitter)
+      cfg/                     -- Layer 2: Control Flow Graph
+      pdg/                     -- Layer 3: Program Dependence Graph
+
+  services/                    -- Runtime infrastructure
+    storage/
+      FalkorDBStore.ts         -- IGraphStore implementation (embedded + remote)
+      cypher/
+        queries.ts             -- Cypher serialization helpers
+    filesystem/
+      FileWatcher.ts           -- Live change tracking (debounce, soft-delete, move detection)
+      FileScanner.ts           -- Full workspace directory scan
+    sync/
+      Reconciler.ts            -- Stale-While-Revalidate background sync
+      DiffEngine.ts            -- Graph diff computation + incremental patches
+
+  providers/                   -- VS Code webview providers (UI layer)
+    GraphViewProvider.ts       -- Force-directed graph visualization
+    ConfigViewProvider.ts      -- Connection and config panel
+    DetailsViewProvider.ts     -- Node/edge details panel
+
+  commands/                    -- VS Code command handlers
+    fullRefresh.ts             -- codegraph.fullRefresh
+    helloWorld.ts              -- falkordb.helloWorld
+
+test/
+  unit/                        -- Bun unit tests (no VS Code API)
+    graph/
+      nodeFactory.test.ts
+  fixtures/                    -- Shared test data
+  integration/                 -- vscode-test integration tests (future)
+```
+
 For detailed architecture documentation and design goals, see the [Overview Documentation](design/02_planned/CPG/00-Overview.md).
 
 ## Known Issues

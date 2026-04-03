@@ -1,0 +1,1 @@
+export { FalkorDBStore } from './FalkorDBStore';
