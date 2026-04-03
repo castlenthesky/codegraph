@@ -184,12 +184,14 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
             else if (message.command === 'incrementalUpdate') {
                 // Incremental update - apply changes without full redraw
                 const patch = message.patch;
-                const currentData = Graph.graphData();
+                const { nodes, links } = Graph.graphData();
+                let newNodes = [...nodes];
+                let newLinks = [...links];
 
                 // Remove nodes
                 if (patch.removeNodes && patch.removeNodes.length > 0) {
                     const nodeIdsToRemove = new Set(patch.removeNodes);
-                    currentData.nodes = currentData.nodes.filter(n => !nodeIdsToRemove.has(n.id));
+                    newNodes = newNodes.filter(n => !nodeIdsToRemove.has(n.id));
                 }
 
                 // Remove links
@@ -197,7 +199,7 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
                     const linksToRemove = new Set(
                         patch.removeLinks.map(l => \`\${l.source}|\${l.target}\`)
                     );
-                    currentData.links = currentData.links.filter(l => {
+                    newLinks = newLinks.filter(l => {
                         const key = \`\${l.source.id || l.source}|\${l.target.id || l.target}\`;
                         return !linksToRemove.has(key);
                     });
@@ -205,12 +207,12 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
 
                 // Add new nodes
                 if (patch.addNodes && patch.addNodes.length > 0) {
-                    currentData.nodes.push(...patch.addNodes);
+                    newNodes = [...newNodes, ...patch.addNodes];
                 }
 
                 // Add new links
                 if (patch.addLinks && patch.addLinks.length > 0) {
-                    currentData.links.push(...patch.addLinks);
+                    newLinks = [...newLinks, ...patch.addLinks];
                 }
 
                 // Update existing links (remove old, add new with updated properties)
@@ -218,7 +220,7 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
                     const updateMap = new Map(
                         patch.updateLinks.map(l => [\`\${l.source}|\${l.target}\`, l])
                     );
-                    currentData.links = currentData.links.map(link => {
+                    newLinks = newLinks.map(link => {
                         const key = \`\${link.source.id || link.source}|\${link.target.id || link.target}\`;
                         const update = updateMap.get(key);
                         return update ? { ...link, ...update } : link;
@@ -228,14 +230,14 @@ export class GraphViewProvider implements vscode.WebviewViewProvider {
                 // Update existing nodes
                 if (patch.updateNodes && patch.updateNodes.length > 0) {
                     const updateMap = new Map(patch.updateNodes.map(n => [n.id, n]));
-                    currentData.nodes = currentData.nodes.map(node => {
+                    newNodes = newNodes.map(node => {
                         const update = updateMap.get(node.id);
                         return update ? { ...node, ...update } : node;
                     });
                 }
 
-                // Apply the updated data
-                Graph.graphData(currentData);
+                // Apply the updated data with a new object reference to trigger D3 reactivity
+                Graph.graphData({ nodes: newNodes, links: newLinks });
             }
         });
     </script>

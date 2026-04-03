@@ -25,50 +25,50 @@ This project is based on the **Joern CPG specification** ([cpg.joern.io](https:/
 │  │         Webview: Force-Directed Graph Visualization   │  │
 │  │  (Theme-aware, active file highlighting, navigation)  │  │
 │  └───────────────────────────────────────────────────────┘  │
-│                            ▲                                 │
-│                            │                                 │
+│                            ▲                                │
+│                            │                                │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │              Extension Host Logic                      │  │
-│  │  - File watching (save events)                         │  │
-│  │  - Editor synchronization                              │  │
-│  │  - Graph query interface                               │  │
+│  │              Extension Host Logic                     │  │
+│  │  - File watching (save events)                        │  │
+│  │  - Editor synchronization                             │  │
+│  │  - Graph query interface                              │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                             ▲
                             │
 ┌─────────────────────────────────────────────────────────────┐
-│                  FalkorDB Graph Database                     │
-│  - CPG nodes and edges storage                               │
-│  - Cypher query engine                                       │
-│  - Incremental update transactions                           │
+│                  FalkorDB Graph Database                    │
+│  - CPG nodes and edges storage                              │
+│  - Cypher query engine                                      │
+│  - Incremental update transactions                          │
 └─────────────────────────────────────────────────────────────┘
                             ▲
                             │
 ┌─────────────────────────────────────────────────────────────┐
-│              Code Property Graph Construction                │
-│                                                              │
-│  ┌──────────────────┐  ┌──────────────────┐                │
-│  │  Layer 1: UAST   │  │  Layer 2: CFG    │                │
-│  │  (Universal AST) │  │  (Control Flow)  │                │
-│  │  - Joern-based   │  │  - Basic blocks  │                │
-│  │  - Multi-lang    │  │  - Execution     │                │
-│  └──────────────────┘  └──────────────────┘                │
-│                                                              │
-│  ┌──────────────────────────────────────────┐              │
-│  │         Layer 3: PDG                      │              │
-│  │  (Program Dependence Graph)               │              │
-│  │  - Data dependencies                      │              │
-│  │  - Control dependencies                   │              │
-│  └──────────────────────────────────────────┘              │
+│              Code Property Graph Construction               │
+│                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐                 │
+│  │  Layer 1: UAST   │  │  Layer 2: CFG    │                 │
+│  │  (Universal AST) │  │  (Control Flow)  │                 │
+│  │  - Joern-based   │  │  - Basic blocks  │                 │
+│  │  - Multi-lang    │  │  - Execution     │                 │
+│  └──────────────────┘  └──────────────────┘                 │
+│                                                             │
+│  ┌──────────────────────────────────────────┐               │
+│  │         Layer 3: PDG                     │               │
+│  │  (Program Dependence Graph)              │               │
+│  │  - Data dependencies                     │               │
+│  │  - Control dependencies                  │               │
+│  └──────────────────────────────────────────┘               │
 └─────────────────────────────────────────────────────────────┘
                             ▲
                             │
 ┌─────────────────────────────────────────────────────────────┐
-│                    Tree-sitter Parsers                       │
+│                    Tree-sitter Parsers                      │
 │  TypeScript/JavaScript | Python | Go | Rust | Java | C/C++  │
-│  - Incremental parsing (on file save)                        │
-│  - Error-tolerant                                            │
-│  - Language-agnostic queries                                 │
+│  - Incremental parsing (on file save)                       │
+│  - Error-tolerant                                           │
+│  - Language-agnostic queries                                │
 └─────────────────────────────────────────────────────────────┘
 ```
 

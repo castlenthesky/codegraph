@@ -116,6 +116,10 @@ export class FalkorDBService {
 	 * Create a node in the graph
 	 */
 	public async createNode(node: GraphNode): Promise<void> {
+		const checkQuery = `MATCH (n {id: $id}) RETURN n.id LIMIT 1`;
+		const res = await this.query(checkQuery, { id: node.id });
+		if (res.data && res.data.length > 0) return; // Idempotent skip if node already exists
+		
 		const props = this.serializeProperties(node);
 		const query = `CREATE (n:${node.label} ${props})`;
 		await this.query(query);
@@ -128,7 +132,7 @@ export class FalkorDBService {
 		const query = `
 			MATCH (source {id: $sourceId})
 			MATCH (target {id: $targetId})
-			CREATE (source)-[:${edge.type}]->(target)
+			MERGE (source)-[:${edge.type}]->(target)
 		`;
 		await this.query(query, { sourceId: edge.source, targetId: edge.target });
 	}

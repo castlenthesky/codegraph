@@ -5,8 +5,9 @@ import { FalkorDBService } from './FalkorDBService';
 import type { DirectoryNode, FileNode, GraphEdge } from '../models/GraphNodes';
 
 interface PendingChange {
-	type: 'create' | 'delete' | 'change';
+	type: 'create' | 'delete' | 'change' | 'rename';
 	uri: vscode.Uri;
+	newUri?: vscode.Uri;
 	timestamp: number;
 }
 
@@ -20,7 +21,7 @@ interface DeletedDirectoryInfo {
 export class FileSystemWatcher {
 	private dbService: FalkorDBService;
 	private workspaceRoot: string;
-	private watchers: vscode.FileSystemWatcher[] = [];
+	private watchers: vscode.Disposable[] = [];
 	private graphViewProvider: any; // Will be set to trigger refreshes
 
 	// Debouncing support for batched updates
@@ -63,30 +64,41 @@ export class FileSystemWatcher {
 			this.watchers.push(watcher);
 		}
 
+		const renameDisposable = vscode.workspace.onDidRenameFiles(e => {
+			for (const file of e.files) {
+				this.queueChange('rename', file.oldUri, file.newUri);
+			}
+		});
+		this.watchers.push(renameDisposable);
+
 		return this.watchers;
 	}
 
 	/**
 	 * Queue a file system change for batched processing
 	 */
-	private queueChange(type: 'create' | 'delete' | 'change', uri: vscode.Uri): void {
+	private queueChange(type: 'create' | 'delete' | 'change' | 'rename', uri: vscode.Uri, newUri?: vscode.Uri): void {
 		const key = uri.fsPath;
 
-		// If a change is already queued for this file, update it with the latest event
-		// Deletes take precedence, then creates, then changes
-		const existing = this.pendingChanges.get(key);
-		if (existing) {
-			// Delete overwrites everything
-			if (type === 'delete') {
-				this.pendingChanges.set(key, { type, uri, timestamp: Date.now() });
-			}
-			// Create overwrites change
-			else if (type === 'create' && existing.type === 'change') {
-				this.pendingChanges.set(key, { type, uri, timestamp: Date.now() });
-			}
-			// Otherwise keep the existing event
+		if (type === 'rename' && newUri) {
+			// Clear any pending independent creates/deletes for these paths
+			this.pendingChanges.delete(uri.fsPath);
+			this.pendingChanges.delete(newUri.fsPath);
+			this.pendingChanges.set(`rename:${key}`, { type, uri, newUri, timestamp: Date.now() });
 		} else {
-			this.pendingChanges.set(key, { type, uri, timestamp: Date.now() });
+			const existing = this.pendingChanges.get(key);
+			// Prevent overriding a rename if delete/create fires subsequently
+			if (existing && existing.type === 'rename') return;
+
+			if (existing) {
+				if (type === 'delete') {
+					this.pendingChanges.set(key, { type, uri, timestamp: Date.now() });
+				} else if (type === 'create' && existing.type === 'change') {
+					this.pendingChanges.set(key, { type, uri, timestamp: Date.now() });
+				}
+			} else {
+				this.pendingChanges.set(key, { type, uri, timestamp: Date.now() });
+			}
 		}
 
 		// Reset debounce timer
@@ -108,8 +120,17 @@ export class FileSystemWatcher {
 			return;
 		}
 
-		// Take a snapshot of pending changes and clear the queue
+		// Sort changes to securely construct topological parent hierarchies first
 		const changes = Array.from(this.pendingChanges.values());
+		changes.sort((a, b) => {
+			const typeRank = { 'rename': 0, 'delete': 1, 'change': 2, 'create': 3 };
+			if (typeRank[a.type] !== typeRank[b.type]) {
+				return typeRank[a.type] - typeRank[b.type];
+			}
+			// For ties (e.g. rapid multiple creations), process shortest paths first (parents before children)
+			return a.uri.fsPath.length - b.uri.fsPath.length;
+		});
+
 		this.pendingChanges.clear();
 		this.debounceTimer = null;
 
@@ -126,14 +147,62 @@ export class FileSystemWatcher {
 					case 'change':
 						await this.handleFileChanged(change.uri);
 						break;
+					case 'rename':
+						if (change.newUri) {
+							await this.handleFileRenamed(change.uri, change.newUri);
+						}
+						break;
 				}
 			} catch (error: any) {
 				console.error(`Error processing ${change.type} for ${change.uri.fsPath}:`, error);
 			}
 		}
 
+		// Sweep any expired soft-deleted orphans
+		await this.hardDeleteExpiredNodes();
+
 		// Notify graph view once for the entire batch
 		this.notifyGraphRefresh();
+	}
+
+	/**
+	 * Permanently delete any nodes that were soft-deleted more than TTL ms ago
+	 */
+	private async hardDeleteExpiredNodes(): Promise<void> {
+		const threshold = Date.now() - this.DIR_CACHE_TTL_MS;
+		try {
+			await this.dbService.query(
+				`MATCH (n) WHERE n.isSoftDeleted IS NOT NULL AND n.isSoftDeleted < $threshold DETACH DELETE n`,
+				{ threshold }
+			);
+		} catch (error) {
+			console.error('Error sweeping soft-deleted nodes:', error);
+		}
+	}
+
+	/**
+	 * Handle atomic file/directory rename
+	 */
+	private async handleFileRenamed(oldUri: vscode.Uri, newUri: vscode.Uri): Promise<void> {
+		try {
+			const oldRelativePath = path.relative(this.workspaceRoot, oldUri.fsPath);
+			const newRelativePath = path.relative(this.workspaceRoot, newUri.fsPath);
+			const oldId = this.generateId(oldRelativePath);
+			const newId = this.generateId(newRelativePath);
+
+			const isDirectory = await this.isDirectoryNode(oldId);
+
+			await this.updateNodePath(oldId, newId, newRelativePath, newUri.fsPath);
+
+			await this.dbService.query(`MATCH ()-[r:CONTAINS]->(n {id: $newId}) DELETE r`, { newId });
+			await this.createParentEdge(newRelativePath, newId);
+
+			if (isDirectory) {
+				await this.updateDescendantPaths(newId, oldRelativePath, newRelativePath);
+			}
+		} catch (error: any) {
+			console.error(`Error handling file rename from ${oldUri.fsPath} to ${newUri.fsPath}:`, error);
+		}
 	}
 
 	/**
@@ -152,6 +221,9 @@ export class FileSystemWatcher {
 				const dirNode = this.createDirectoryNode(absolutePath, relativePath);
 				await this.dbService.createNode(dirNode);
 
+				// Strip any soft delete ghosts if it was resiliently recreated via idempotency
+				await this.dbService.query(`MATCH (n {id: $id}) REMOVE n.isSoftDeleted`, { id: dirNode.id });
+
 				// Create CONTAINS edge from parent
 				await this.createParentEdge(relativePath, dirNode.id);
 
@@ -166,6 +238,9 @@ export class FileSystemWatcher {
 				// Create file node
 				const fileNode = this.createFileNode(absolutePath, relativePath);
 				await this.dbService.createNode(fileNode);
+
+				// Strip any soft delete ghosts
+				await this.dbService.query(`MATCH (n {id: $id}) REMOVE n.isSoftDeleted`, { id: fileNode.id });
 
 				// Create CONTAINS edge from parent directory
 				await this.createParentEdge(relativePath, fileNode.id);
@@ -205,22 +280,20 @@ export class FileSystemWatcher {
 				// Clean up old cache entries
 				this.cleanupDeletedDirsCache();
 
-				// CASCADE DELETE: Delete all descendants first (deepest to shallowest)
-				// Sort by path depth (deepest first) to avoid orphaning nodes
-				const sortedDescendants = descendants.sort((a, b) => {
-					const depthA = a.relativePath.split(path.sep).length;
-					const depthB = b.relativePath.split(path.sep).length;
-					return depthB - depthA; // Descending order
-				});
-
-				for (const descendant of sortedDescendants) {
-					console.log(`Cascade deleting descendant: ${descendant.id}`);
-					await this.dbService.deleteNode(descendant.id);
+				for (const descendant of descendants) {
+					console.log(`Soft-deleting descendant: ${descendant.id}`);
+					await this.dbService.query(
+						`MATCH (n {id: $id}) SET n.isSoftDeleted = $time`,
+						{ id: descendant.id, time: Date.now() }
+					);
 				}
 			}
 
-			// Delete the node itself (this will also delete all edges via DETACH DELETE)
-			await this.dbService.deleteNode(nodeId);
+			// Soft delete the node itself
+			await this.dbService.query(
+				`MATCH (n {id: $id}) SET n.isSoftDeleted = $time`,
+				{ id: nodeId, time: Date.now() }
+			);
 
 			// Note: Graph refresh is handled by processBatch() to batch multiple changes
 
@@ -451,14 +524,28 @@ export class FileSystemWatcher {
 					console.log(`Reconnecting orphaned child: ${descendant.id} -> ${childId}`);
 
 					// Update the orphaned node's ID and path to reflect new location
-					await this.updateNodePath(descendant.id, childId, childRelativePath, childAbsPath);
+					const updated = await this.updateNodePath(descendant.id, childId, childRelativePath, childAbsPath);
+
+					if (!updated) {
+						// Missing from DB entirely, we must recreate it
+						if (expectedIsDir) {
+							await this.dbService.createNode(this.createDirectoryNode(childAbsPath, childRelativePath));
+						} else {
+							await this.dbService.createNode(this.createFileNode(childAbsPath, childRelativePath));
+						}
+					}
 
 					// Create new CONTAINS edge from new parent
 					await this.createParentEdge(childRelativePath, childId);
 
 					// If it's a directory, recursively update its descendants
 					if (expectedIsDir) {
-						await this.updateDescendantPaths(descendant.id, descendant.relativePath, childRelativePath);
+						if (updated) {
+							await this.updateDescendantPaths(childId, descendant.relativePath, childRelativePath);
+						} else {
+							// Need to recursively reconstruct since it was fully missing
+							await this.reconnectOrphanedChildren(childId, childRelativePath, childAbsPath);
+						}
 					}
 				}
 
@@ -493,15 +580,28 @@ export class FileSystemWatcher {
 				if (orphanedChild) {
 					console.log(`Reconnecting orphan via name search: ${orphanedChild.id} -> ${childId}`);
 
-					// Update the orphaned node's ID and path to reflect new location
-					await this.updateNodePath(orphanedChild.id, childId, childRelativePath, childAbsPath);
+					const updated = await this.updateNodePath(orphanedChild.id, childId, childRelativePath, childAbsPath);
 
-					// Create new CONTAINS edge from new parent
+					if (!updated) {
+						if (entry.isDirectory()) await this.dbService.createNode(this.createDirectoryNode(childAbsPath, childRelativePath));
+						else await this.dbService.createNode(this.createFileNode(childAbsPath, childRelativePath));
+					}
+
 					await this.createParentEdge(childRelativePath, childId);
 
-					// If it's a directory, recursively update its descendants
 					if (entry.isDirectory()) {
-						await this.updateDescendantPaths(orphanedChild.id, orphanedChild.relativePath, childRelativePath);
+						if (updated) await this.updateDescendantPaths(childId, orphanedChild.relativePath, childRelativePath);
+						else await this.reconnectOrphanedChildren(childId, childRelativePath, childAbsPath);
+					}
+				} else {
+					// Discovered a completely new untracked file/folder! Register it.
+					if (entry.isDirectory()) {
+						await this.dbService.createNode(this.createDirectoryNode(childAbsPath, childRelativePath));
+						await this.createParentEdge(childRelativePath, childId);
+						await this.reconnectOrphanedChildren(childId, childRelativePath, childAbsPath);
+					} else if (entry.isFile()) {
+						await this.dbService.createNode(this.createFileNode(childAbsPath, childRelativePath));
+						await this.createParentEdge(childRelativePath, childId);
 					}
 				}
 			}
@@ -541,35 +641,21 @@ export class FileSystemWatcher {
 	/**
 	 * Update a node's ID and path properties
 	 */
-	private async updateNodePath(oldId: string, newId: string, newRelativePath: string, newAbsolutePath: string): Promise<void> {
+	private async updateNodePath(oldId: string, newId: string, newRelativePath: string, newAbsolutePath: string): Promise<boolean> {
 		try {
-			// Delete old node and create new one with updated ID
-			// (FalkorDB doesn't support changing node IDs directly)
 			const result = await this.dbService.query(
-				'MATCH (n {id: $oldId}) RETURN n',
-				{ oldId }
+				`MATCH (n {id: $oldId})
+				 SET n.id = $newId, n.relativePath = $newRelativePath, n.path = $newAbsolutePath
+				 REMOVE n.isSoftDeleted
+				 RETURN n`,
+				{ oldId, newId, newRelativePath, newAbsolutePath }
 			);
 
-			if (result.data && result.data.length > 0) {
-				const oldNode = result.data[0].n.properties;
-
-				// Delete old node
-				await this.dbService.deleteNode(oldId);
-
-				// Create new node with updated properties
-				const updatedNode = {
-					...oldNode,
-					id: newId,
-					relativePath: newRelativePath,
-					path: newAbsolutePath
-				};
-
-				await this.dbService.createNode(updatedNode as any);
-			}
+			return result.data && result.data.length > 0;
 		} catch (error: any) {
 			console.error('Error updating node path:', error);
 			vscode.window.showErrorMessage(`Failed to update node path from ${oldId} to ${newId}: ${error.message}`);
-			throw error; // Re-throw to propagate failure
+			return false;
 		}
 	}
 
