@@ -2,12 +2,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { FalkorDBService } from './FalkorDBService';
-import type { DirectoryNode, FileNode, GraphEdge } from '../models/GraphNodes';
+import type { DirectoryNode, GraphEdge } from '../models/GraphNodes';
+import { createDirectoryNode, createFileNode, generateId, shouldIgnorePath } from '../utils/nodeFactory';
 
 /**
  * Service responsible for scanning the physical disk and transforming directory
  * layouts into foundational Universal Abstract Syntax Tree (UAST) nodes.
- * 
+ *
  * Interactions:
  * - `FalkorDBService`: Persists parsed directories and files.
  * - `GraphSynchronizer`: Utilizes this service to ingest or refresh newly discovered
@@ -48,25 +49,27 @@ export class FileSystemIndexer {
 				await this.dbService.clearGraph();
 
 				// Create workspace root node
-			const workspaceName = path.basename(this.workspaceRoot);
-			const workspaceRootNode: DirectoryNode = {
-				id: 'workspace-root',
-				label: 'DIRECTORY',
-				name: workspaceName,
-				path: this.workspaceRoot,
-				relativePath: '',
-				createdAt: Date.now(),
-				modifiedAt: Date.now()
-			};
-			await this.dbService.createNode(workspaceRootNode);
+				const workspaceName = path.basename(this.workspaceRoot);
+				const workspaceRootNode: DirectoryNode = {
+					id: 'workspace-root',
+					label: 'DIRECTORY',
+					name: workspaceName,
+					path: this.workspaceRoot,
+					relativePath: '',
+					createdAt: Date.now(),
+					modifiedAt: Date.now()
+				};
+				await this.dbService.createNode(workspaceRootNode);
 
-			let totalFiles = 0;
+				let totalFiles = 0;
 
 				// Index each watched folder
 				for (const folder of watchFolders) {
 					const folderPath = path.join(this.workspaceRoot, folder);
 
-					if (!fs.existsSync(folderPath)) {
+					try {
+						await fs.promises.access(folderPath);
+					} catch {
 						vscode.window.showWarningMessage(`Watch folder not found: ${folder}`);
 						continue;
 					}
@@ -74,14 +77,14 @@ export class FileSystemIndexer {
 					progress.report({ message: `Indexing ${folder}...` });
 					const count = await this.indexDirectory(folderPath, folder);
 					totalFiles += count;
-				// Connect watch folder to workspace root
-				const watchFolderId = this.generateId(folder);
-				const edge: GraphEdge = {
-					source: 'workspace-root',
-					target: watchFolderId,
-					type: 'CONTAINS'
-				};
-				await this.dbService.createEdge(edge);
+					// Connect watch folder to workspace root
+					const watchFolderId = generateId(folder);
+					const edge: GraphEdge = {
+						source: 'workspace-root',
+						target: watchFolderId,
+						type: 'CONTAINS'
+					};
+					await this.dbService.createEdge(edge);
 				}
 
 				vscode.window.showInformationMessage(`Successfully indexed ${totalFiles} files!`);
@@ -98,15 +101,15 @@ export class FileSystemIndexer {
 		let fileCount = 0;
 
 		// Create directory node
-		const dirNode = this.createDirectoryNode(absolutePath, relativePath);
+		const dirNode = await createDirectoryNode(absolutePath, relativePath);
 		await this.dbService.createNode(dirNode);
 
 		// Read directory contents
-		const entries = fs.readdirSync(absolutePath, { withFileTypes: true });
+		const entries = await fs.promises.readdir(absolutePath, { withFileTypes: true });
 
 		for (const entry of entries) {
 			// Skip hidden files and node_modules
-			if (entry.name.startsWith('.') || entry.name === 'node_modules') {
+			if (shouldIgnorePath(path.join(absolutePath, entry.name))) {
 				continue;
 			}
 
@@ -118,7 +121,7 @@ export class FileSystemIndexer {
 				fileCount += await this.indexDirectory(entryAbsPath, entryRelPath);
 
 				// Create CONTAINS edge from parent to child directory
-				const childDirId = this.generateId(entryRelPath);
+				const childDirId = generateId(entryRelPath);
 				const edge: GraphEdge = {
 					source: dirNode.id,
 					target: childDirId,
@@ -127,7 +130,7 @@ export class FileSystemIndexer {
 				await this.dbService.createEdge(edge);
 			} else if (entry.isFile()) {
 				// Create file node
-				const fileNode = this.createFileNode(entryAbsPath, entryRelPath);
+				const fileNode = await createFileNode(entryAbsPath, entryRelPath);
 				await this.dbService.createNode(fileNode);
 				fileCount++;
 
@@ -142,80 +145,5 @@ export class FileSystemIndexer {
 		}
 
 		return fileCount;
-	}
-
-	/**
-	 * Create a DirectoryNode from path
-	 */
-	private createDirectoryNode(absolutePath: string, relativePath: string): DirectoryNode {
-		const stats = fs.statSync(absolutePath);
-
-		return {
-			id: this.generateId(relativePath),
-			label: 'DIRECTORY',
-			name: path.basename(absolutePath),
-			path: absolutePath,
-			relativePath: relativePath,
-			createdAt: stats.birthtimeMs,
-			modifiedAt: stats.mtimeMs
-		};
-	}
-
-	/**
-	 * Create a FileNode from path
-	 */
-	private createFileNode(absolutePath: string, relativePath: string): FileNode {
-		const stats = fs.statSync(absolutePath);
-		const ext = path.extname(absolutePath);
-
-		return {
-			id: this.generateId(relativePath),
-			label: 'FILE',
-			name: path.basename(absolutePath),
-			path: absolutePath,
-			relativePath: relativePath,
-			extension: ext,
-			language: this.detectLanguage(ext),
-			size: stats.size,
-			createdAt: stats.birthtimeMs,
-			modifiedAt: stats.mtimeMs,
-			isParsed: false
-		};
-	}
-
-	/**
-	 * Detect language from file extension
-	 */
-	private detectLanguage(extension: string): string {
-		const langMap: Record<string, string> = {
-			'.ts': 'typescript',
-			'.tsx': 'typescript',
-			'.js': 'javascript',
-			'.jsx': 'javascript',
-			'.py': 'python',
-			'.go': 'go',
-			'.rs': 'rust',
-			'.java': 'java',
-			'.c': 'c',
-			'.cpp': 'cpp',
-			'.h': 'c',
-			'.hpp': 'cpp',
-			'.cs': 'csharp',
-			'.rb': 'ruby',
-			'.php': 'php',
-			'.swift': 'swift',
-			'.kt': 'kotlin',
-			'.scala': 'scala'
-		};
-
-		return langMap[extension.toLowerCase()] || 'unknown';
-	}
-
-	/**
-	 * Generate a unique ID from relative path
-	 */
-	private generateId(relativePath: string): string {
-		// Normalize path separators and use as ID
-		return relativePath.replace(/\\/g, '/');
 	}
 }

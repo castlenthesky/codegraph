@@ -41,6 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
 	fileWatcher.setGraphViewProvider(graphProvider);
 	const watcherDisposables = fileWatcher.startWatching();
 	watcherDisposables.forEach(d => context.subscriptions.push(d));
+	context.subscriptions.push({ dispose: () => fileWatcher.dispose() });
 
 	const detailsProvider = new DetailsViewProvider();
 	context.subscriptions.push(
