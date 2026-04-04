@@ -1,14 +1,18 @@
 /**
- * Placeholder interfaces for the future tree-sitter parsing layer (UAST/CFG/PDG).
+ * Interfaces for the tree-sitter parsing layer (UAST/CFG/PDG).
  * Implementations will live in src/graph/cpg/.
  */
 
-export interface ILanguageAdapter {
-	readonly language: string;
-	readonly fileExtensions: string[];
+import type { Tree, Range } from 'tree-sitter';
+
+export interface ParseResult {
+	tree: Tree;
+	changedRanges: Range[] | null;
+	language: string;
 }
 
-export interface IParser {
-	readonly adapter: ILanguageAdapter;
-	parse(content: string, filePath: string): Promise<unknown>;
+export interface IParserService {
+	parse(filePath: string, source: string): Promise<ParseResult>;
+	invalidate(filePath: string): void;
+	dispose(): void;
 }

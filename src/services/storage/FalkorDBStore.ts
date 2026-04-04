@@ -1,9 +1,9 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import * as vscode from 'vscode';
 import type { GraphNode, GraphEdge } from '../../types/nodes';
+import type { CpgNode, CpgEdge } from '../../types/cpg';
 import type { IGraphStore } from '../../types/storage';
-import { serializeProperties, serializeValue } from './cypher/queries';
+import { serializeProperties, serializeValue, buildBatchNodeCypher, buildBatchEdgeCypher } from './cypher/queries';
 
 type FalkorDBClient = any;
 type Graph = any;
@@ -52,26 +52,12 @@ export class FalkorDBStore implements IGraphStore {
 			fs.mkdirSync(dataPath, { recursive: true });
 		}
 
-		let redisServerPath: string | undefined;
-		let modulePath: string | undefined;
-		try {
-			const pkg = require.resolve('@falkordblite/linux-x64/package.json');
-			const binDir = path.join(path.dirname(pkg), 'bin');
-			const _r = path.join(binDir, 'redis-server');
-			const _m = path.join(binDir, 'falkordb.so');
-			if (fs.existsSync(_r)) { redisServerPath = _r; }
-			if (fs.existsSync(_m)) { modulePath = _m; }
-		} catch (e) {
-			// Fallback gracefully
-		}
-
 		const { FalkorDB } = await import('falkordblite');
 		this.db = await FalkorDB.open({
 			path: dataPath || undefined,
-			redisServerPath,
-			modulePath
 		});
 		this.graph = this.db.selectGraph(graphName);
+		await this.createIndexes();
 	}
 
 	private async connectRemote(graphName: string): Promise<void> {
@@ -86,6 +72,7 @@ export class FalkorDBStore implements IGraphStore {
 			password: password || undefined
 		});
 		this.graph = this.db.selectGraph(graphName);
+		await this.createIndexes();
 	}
 
 	public async query(cypherQuery: string, params?: Record<string, any>): Promise<any> {
@@ -150,6 +137,54 @@ export class FalkorDBStore implements IGraphStore {
 
 	public async clearGraph(): Promise<void> {
 		await this.query('MATCH (n) DETACH DELETE n');
+	}
+
+	public async createNodes(nodes: CpgNode[]): Promise<void> {
+		const queries = buildBatchNodeCypher(nodes);
+		const BATCH_SIZE = 50;
+		for (let i = 0; i < queries.length; i += BATCH_SIZE) {
+			await Promise.all(queries.slice(i, i + BATCH_SIZE).map(q => this.query(q)));
+		}
+	}
+
+	public async createEdges(edges: CpgEdge[]): Promise<void> {
+		const queries = buildBatchEdgeCypher(edges);
+		const BATCH_SIZE = 50;
+		for (let i = 0; i < queries.length; i += BATCH_SIZE) {
+			await Promise.all(queries.slice(i, i + BATCH_SIZE).map(q => this.query(q)));
+		}
+	}
+
+	public async deleteNodes(nodeIds: string[]): Promise<void> {
+		if (nodeIds.length === 0) { return; }
+		const BATCH_SIZE = 100;
+		for (let i = 0; i < nodeIds.length; i += BATCH_SIZE) {
+			const batch = nodeIds.slice(i, i + BATCH_SIZE);
+			const idList = batch.map(id => `"${id.replace(/"/g, '\\"')}"`).join(', ');
+			await this.query(`MATCH (n) WHERE n.id IN [${idList}] DETACH DELETE n`);
+		}
+	}
+
+	public async replaceFileSubgraph(filePath: string, nodes: CpgNode[], edges: CpgEdge[]): Promise<void> {
+		const escapedPath = filePath.replace(/"/g, '\\"');
+		await this.query(
+			`MATCH (n) WHERE n.filename = "${escapedPath}" AND NOT n.label = "FILE" AND NOT (n:DIRECTORY) DETACH DELETE n`
+		);
+		if (nodes.length > 0) { await this.createNodes(nodes); }
+		if (edges.length > 0) { await this.createEdges(edges); }
+	}
+
+	private async createIndexes(): Promise<void> {
+		const indexes = [
+			'CREATE INDEX FOR (n:METHOD) ON (n.fullName)',
+			'CREATE INDEX FOR (n:FILE) ON (n.name)',
+			'CREATE INDEX FOR (n:CALL) ON (n.methodFullName)',
+			'CREATE INDEX FOR (n:TYPE_DECL) ON (n.fullName)',
+			'CREATE INDEX FOR (n:IDENTIFIER) ON (n.name)',
+		];
+		for (const idx of indexes) {
+			try { await this.query(idx); } catch { /* ignore if already exists */ }
+		}
 	}
 
 	public async close(): Promise<void> {

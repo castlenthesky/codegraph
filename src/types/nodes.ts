@@ -3,6 +3,8 @@
  * Extended with FILE and DIRECTORY nodes for file system tracking.
  */
 
+import type { CpgNode } from './cpg';
+
 export interface BaseNode {
 	id: string;
 	label: string;
@@ -30,7 +32,7 @@ export interface FileNode extends BaseNode {
 	isParsed: boolean;
 }
 
-export type GraphNode = DirectoryNode | FileNode;
+export type GraphNode = DirectoryNode | FileNode | CpgNode;
 
 export interface GraphEdge {
 	source: string;

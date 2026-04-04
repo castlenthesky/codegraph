@@ -1,0 +1,809 @@
+{
+  "type": "program",
+  "start": {
+    "row": 0,
+    "column": 0
+  },
+  "end": {
+    "row": 11,
+    "column": 0
+  },
+  "children": [
+    {
+      "type": "package_declaration",
+      "start": {
+        "row": 0,
+        "column": 0
+      },
+      "end": {
+        "row": 0,
+        "column": 41
+      },
+      "children": [
+        {
+          "type": "scoped_identifier",
+          "start": {
+            "row": 0,
+            "column": 8
+          },
+          "end": {
+            "row": 0,
+            "column": 40
+          },
+          "children": [
+            {
+              "type": "scoped_identifier",
+              "start": {
+                "row": 0,
+                "column": 8
+              },
+              "end": {
+                "row": 0,
+                "column": 35
+              },
+              "children": [
+                {
+                  "type": "scoped_identifier",
+                  "start": {
+                    "row": 0,
+                    "column": 8
+                  },
+                  "end": {
+                    "row": 0,
+                    "column": 21
+                  },
+                  "children": [
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "row": 0,
+                        "column": 8
+                      },
+                      "end": {
+                        "row": 0,
+                        "column": 12
+                      },
+                      "children": [],
+                      "field": "scope",
+                      "text": "test"
+                    },
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "row": 0,
+                        "column": 13
+                      },
+                      "end": {
+                        "row": 0,
+                        "column": 21
+                      },
+                      "children": [],
+                      "field": "name",
+                      "text": "fixtures"
+                    }
+                  ],
+                  "field": "scope"
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 0,
+                    "column": 22
+                  },
+                  "end": {
+                    "row": 0,
+                    "column": 35
+                  },
+                  "children": [],
+                  "field": "name",
+                  "text": "code_examples"
+                }
+              ],
+              "field": "scope"
+            },
+            {
+              "type": "identifier",
+              "start": {
+                "row": 0,
+                "column": 36
+              },
+              "end": {
+                "row": 0,
+                "column": 40
+              },
+              "children": [],
+              "field": "name",
+              "text": "java"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "import_declaration",
+      "start": {
+        "row": 2,
+        "column": 0
+      },
+      "end": {
+        "row": 2,
+        "column": 58
+      },
+      "children": [
+        {
+          "type": "scoped_identifier",
+          "start": {
+            "row": 2,
+            "column": 7
+          },
+          "end": {
+            "row": 2,
+            "column": 57
+          },
+          "children": [
+            {
+              "type": "scoped_identifier",
+              "start": {
+                "row": 2,
+                "column": 7
+              },
+              "end": {
+                "row": 2,
+                "column": 48
+              },
+              "children": [
+                {
+                  "type": "scoped_identifier",
+                  "start": {
+                    "row": 2,
+                    "column": 7
+                  },
+                  "end": {
+                    "row": 2,
+                    "column": 39
+                  },
+                  "children": [
+                    {
+                      "type": "scoped_identifier",
+                      "start": {
+                        "row": 2,
+                        "column": 7
+                      },
+                      "end": {
+                        "row": 2,
+                        "column": 34
+                      },
+                      "children": [
+                        {
+                          "type": "scoped_identifier",
+                          "start": {
+                            "row": 2,
+                            "column": 7
+                          },
+                          "end": {
+                            "row": 2,
+                            "column": 20
+                          },
+                          "children": [
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "row": 2,
+                                "column": 7
+                              },
+                              "end": {
+                                "row": 2,
+                                "column": 11
+                              },
+                              "children": [],
+                              "field": "scope",
+                              "text": "test"
+                            },
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "row": 2,
+                                "column": 12
+                              },
+                              "end": {
+                                "row": 2,
+                                "column": 20
+                              },
+                              "children": [],
+                              "field": "name",
+                              "text": "fixtures"
+                            }
+                          ],
+                          "field": "scope"
+                        },
+                        {
+                          "type": "identifier",
+                          "start": {
+                            "row": 2,
+                            "column": 21
+                          },
+                          "end": {
+                            "row": 2,
+                            "column": 34
+                          },
+                          "children": [],
+                          "field": "name",
+                          "text": "code_examples"
+                        }
+                      ],
+                      "field": "scope"
+                    },
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "row": 2,
+                        "column": 35
+                      },
+                      "end": {
+                        "row": 2,
+                        "column": 39
+                      },
+                      "children": [],
+                      "field": "name",
+                      "text": "java"
+                    }
+                  ],
+                  "field": "scope"
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 2,
+                    "column": 40
+                  },
+                  "end": {
+                    "row": 2,
+                    "column": 48
+                  },
+                  "children": [],
+                  "field": "name",
+                  "text": "services"
+                }
+              ],
+              "field": "scope"
+            },
+            {
+              "type": "identifier",
+              "start": {
+                "row": 2,
+                "column": 49
+              },
+              "end": {
+                "row": 2,
+                "column": 57
+              },
+              "children": [],
+              "field": "name",
+              "text": "Greeting"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "class_declaration",
+      "start": {
+        "row": 4,
+        "column": 0
+      },
+      "end": {
+        "row": 10,
+        "column": 1
+      },
+      "children": [
+        {
+          "type": "modifiers",
+          "start": {
+            "row": 4,
+            "column": 0
+          },
+          "end": {
+            "row": 4,
+            "column": 6
+          },
+          "children": [],
+          "text": "public"
+        },
+        {
+          "type": "identifier",
+          "start": {
+            "row": 4,
+            "column": 13
+          },
+          "end": {
+            "row": 4,
+            "column": 23
+          },
+          "children": [],
+          "field": "name",
+          "text": "HelloWorld"
+        },
+        {
+          "type": "class_body",
+          "start": {
+            "row": 4,
+            "column": 24
+          },
+          "end": {
+            "row": 10,
+            "column": 1
+          },
+          "children": [
+            {
+              "type": "method_declaration",
+              "start": {
+                "row": 5,
+                "column": 4
+              },
+              "end": {
+                "row": 9,
+                "column": 5
+              },
+              "children": [
+                {
+                  "type": "modifiers",
+                  "start": {
+                    "row": 5,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 5,
+                    "column": 17
+                  },
+                  "children": [],
+                  "text": "public static"
+                },
+                {
+                  "type": "void_type",
+                  "start": {
+                    "row": 5,
+                    "column": 18
+                  },
+                  "end": {
+                    "row": 5,
+                    "column": 22
+                  },
+                  "children": [],
+                  "field": "type",
+                  "text": "void"
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 5,
+                    "column": 23
+                  },
+                  "end": {
+                    "row": 5,
+                    "column": 27
+                  },
+                  "children": [],
+                  "field": "name",
+                  "text": "main"
+                },
+                {
+                  "type": "formal_parameters",
+                  "start": {
+                    "row": 5,
+                    "column": 27
+                  },
+                  "end": {
+                    "row": 5,
+                    "column": 42
+                  },
+                  "children": [
+                    {
+                      "type": "formal_parameter",
+                      "start": {
+                        "row": 5,
+                        "column": 28
+                      },
+                      "end": {
+                        "row": 5,
+                        "column": 41
+                      },
+                      "children": [
+                        {
+                          "type": "array_type",
+                          "start": {
+                            "row": 5,
+                            "column": 28
+                          },
+                          "end": {
+                            "row": 5,
+                            "column": 36
+                          },
+                          "children": [
+                            {
+                              "type": "type_identifier",
+                              "start": {
+                                "row": 5,
+                                "column": 28
+                              },
+                              "end": {
+                                "row": 5,
+                                "column": 34
+                              },
+                              "children": [],
+                              "field": "element",
+                              "text": "String"
+                            },
+                            {
+                              "type": "dimensions",
+                              "start": {
+                                "row": 5,
+                                "column": 34
+                              },
+                              "end": {
+                                "row": 5,
+                                "column": 36
+                              },
+                              "children": [],
+                              "field": "dimensions",
+                              "text": "[]"
+                            }
+                          ],
+                          "field": "type"
+                        },
+                        {
+                          "type": "identifier",
+                          "start": {
+                            "row": 5,
+                            "column": 37
+                          },
+                          "end": {
+                            "row": 5,
+                            "column": 41
+                          },
+                          "children": [],
+                          "field": "name",
+                          "text": "args"
+                        }
+                      ]
+                    }
+                  ],
+                  "field": "parameters"
+                },
+                {
+                  "type": "block",
+                  "start": {
+                    "row": 5,
+                    "column": 43
+                  },
+                  "end": {
+                    "row": 9,
+                    "column": 5
+                  },
+                  "children": [
+                    {
+                      "type": "local_variable_declaration",
+                      "start": {
+                        "row": 6,
+                        "column": 8
+                      },
+                      "end": {
+                        "row": 6,
+                        "column": 41
+                      },
+                      "children": [
+                        {
+                          "type": "type_identifier",
+                          "start": {
+                            "row": 6,
+                            "column": 8
+                          },
+                          "end": {
+                            "row": 6,
+                            "column": 14
+                          },
+                          "children": [],
+                          "field": "type",
+                          "text": "String"
+                        },
+                        {
+                          "type": "variable_declarator",
+                          "start": {
+                            "row": 6,
+                            "column": 15
+                          },
+                          "end": {
+                            "row": 6,
+                            "column": 40
+                          },
+                          "children": [
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "row": 6,
+                                "column": 15
+                              },
+                              "end": {
+                                "row": 6,
+                                "column": 23
+                              },
+                              "children": [],
+                              "field": "name",
+                              "text": "username"
+                            },
+                            {
+                              "type": "string_literal",
+                              "start": {
+                                "row": 6,
+                                "column": 26
+                              },
+                              "end": {
+                                "row": 6,
+                                "column": 40
+                              },
+                              "children": [
+                                {
+                                  "type": "string_fragment",
+                                  "start": {
+                                    "row": 6,
+                                    "column": 27
+                                  },
+                                  "end": {
+                                    "row": 6,
+                                    "column": 39
+                                  },
+                                  "children": [],
+                                  "text": "TESTING_USER"
+                                }
+                              ],
+                              "field": "value"
+                            }
+                          ],
+                          "field": "declarator"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "local_variable_declaration",
+                      "start": {
+                        "row": 7,
+                        "column": 8
+                      },
+                      "end": {
+                        "row": 7,
+                        "column": 53
+                      },
+                      "children": [
+                        {
+                          "type": "type_identifier",
+                          "start": {
+                            "row": 7,
+                            "column": 8
+                          },
+                          "end": {
+                            "row": 7,
+                            "column": 14
+                          },
+                          "children": [],
+                          "field": "type",
+                          "text": "String"
+                        },
+                        {
+                          "type": "variable_declarator",
+                          "start": {
+                            "row": 7,
+                            "column": 15
+                          },
+                          "end": {
+                            "row": 7,
+                            "column": 52
+                          },
+                          "children": [
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "row": 7,
+                                "column": 15
+                              },
+                              "end": {
+                                "row": 7,
+                                "column": 21
+                              },
+                              "children": [],
+                              "field": "name",
+                              "text": "result"
+                            },
+                            {
+                              "type": "method_invocation",
+                              "start": {
+                                "row": 7,
+                                "column": 24
+                              },
+                              "end": {
+                                "row": 7,
+                                "column": 52
+                              },
+                              "children": [
+                                {
+                                  "type": "identifier",
+                                  "start": {
+                                    "row": 7,
+                                    "column": 24
+                                  },
+                                  "end": {
+                                    "row": 7,
+                                    "column": 32
+                                  },
+                                  "children": [],
+                                  "field": "object",
+                                  "text": "Greeting"
+                                },
+                                {
+                                  "type": "identifier",
+                                  "start": {
+                                    "row": 7,
+                                    "column": 33
+                                  },
+                                  "end": {
+                                    "row": 7,
+                                    "column": 42
+                                  },
+                                  "children": [],
+                                  "field": "name",
+                                  "text": "greetUser"
+                                },
+                                {
+                                  "type": "argument_list",
+                                  "start": {
+                                    "row": 7,
+                                    "column": 42
+                                  },
+                                  "end": {
+                                    "row": 7,
+                                    "column": 52
+                                  },
+                                  "children": [
+                                    {
+                                      "type": "identifier",
+                                      "start": {
+                                        "row": 7,
+                                        "column": 43
+                                      },
+                                      "end": {
+                                        "row": 7,
+                                        "column": 51
+                                      },
+                                      "children": [],
+                                      "text": "username"
+                                    }
+                                  ],
+                                  "field": "arguments"
+                                }
+                              ],
+                              "field": "value"
+                            }
+                          ],
+                          "field": "declarator"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "expression_statement",
+                      "start": {
+                        "row": 8,
+                        "column": 8
+                      },
+                      "end": {
+                        "row": 8,
+                        "column": 35
+                      },
+                      "children": [
+                        {
+                          "type": "method_invocation",
+                          "start": {
+                            "row": 8,
+                            "column": 8
+                          },
+                          "end": {
+                            "row": 8,
+                            "column": 34
+                          },
+                          "children": [
+                            {
+                              "type": "field_access",
+                              "start": {
+                                "row": 8,
+                                "column": 8
+                              },
+                              "end": {
+                                "row": 8,
+                                "column": 18
+                              },
+                              "children": [
+                                {
+                                  "type": "identifier",
+                                  "start": {
+                                    "row": 8,
+                                    "column": 8
+                                  },
+                                  "end": {
+                                    "row": 8,
+                                    "column": 14
+                                  },
+                                  "children": [],
+                                  "field": "object",
+                                  "text": "System"
+                                },
+                                {
+                                  "type": "identifier",
+                                  "start": {
+                                    "row": 8,
+                                    "column": 15
+                                  },
+                                  "end": {
+                                    "row": 8,
+                                    "column": 18
+                                  },
+                                  "children": [],
+                                  "field": "field",
+                                  "text": "out"
+                                }
+                              ],
+                              "field": "object"
+                            },
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "row": 8,
+                                "column": 19
+                              },
+                              "end": {
+                                "row": 8,
+                                "column": 26
+                              },
+                              "children": [],
+                              "field": "name",
+                              "text": "println"
+                            },
+                            {
+                              "type": "argument_list",
+                              "start": {
+                                "row": 8,
+                                "column": 26
+                              },
+                              "end": {
+                                "row": 8,
+                                "column": 34
+                              },
+                              "children": [
+                                {
+                                  "type": "identifier",
+                                  "start": {
+                                    "row": 8,
+                                    "column": 27
+                                  },
+                                  "end": {
+                                    "row": 8,
+                                    "column": 33
+                                  },
+                                  "children": [],
+                                  "text": "result"
+                                }
+                              ],
+                              "field": "arguments"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "field": "body"
+                }
+              ]
+            }
+          ],
+          "field": "body"
+        }
+      ]
+    }
+  ]
+}

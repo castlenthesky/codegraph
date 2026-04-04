@@ -7,6 +7,9 @@ import { GraphViewProvider } from './providers/GraphViewProvider';
 import { ConfigViewProvider } from './providers/ConfigViewProvider';
 import { DetailsViewProvider } from './providers/DetailsViewProvider';
 import { registerAllCommands } from './commands';
+import { ParserService } from './graph/cpg/uast/ParserService';
+import { UastBuilder } from './graph/cpg/uast/UastBuilder';
+import { CpgPipeline } from './graph/cpg/CpgPipeline';
 
 export interface ServiceContainer {
 	store: FalkorDBStore;
@@ -27,7 +30,7 @@ export function bootstrap(context: vscode.ExtensionContext): ServiceContainer {
 	const diffEngine = new DiffEngine();
 
 	// Providers
-	const graphProvider = new GraphViewProvider(store, diffEngine);
+	const graphProvider = new GraphViewProvider(store, diffEngine, context.extensionUri);
 	const configProvider = new ConfigViewProvider();
 	const detailsProvider = new DetailsViewProvider();
 
@@ -37,16 +40,23 @@ export function bootstrap(context: vscode.ExtensionContext): ServiceContainer {
 		vscode.window.registerWebviewViewProvider('falkordb.details', detailsProvider)
 	);
 
+	// CPG pipeline
+	const parserService = new ParserService();
+	const uastBuilder = new UastBuilder();
+	const cpgPipeline = new CpgPipeline(parserService, uastBuilder, store, graphProvider);
+
 	// File system watcher
-	const fileWatcher = new FileWatcher(store, graphProvider);
+	const fileWatcher = new FileWatcher(store, graphProvider, cpgPipeline);
 	fileWatcher.startWatching().forEach(d => context.subscriptions.push(d));
 	context.subscriptions.push({ dispose: () => fileWatcher.dispose() });
 
 	// Reconciler (Stale-While-Revalidate)
 	const reconciler = new Reconciler(store, graphProvider);
 
-	// Phase 1: Fast Load — show stale cached data immediately
-	reconciler.loadGraphFromDatabase();
+	// Phase 1: Fast Load — show stale cached data immediately (intentionally async)
+	reconciler.loadGraphFromDatabase().catch((err: Error) =>
+		console.error('[bootstrap] Phase 1 load failed:', err.message)
+	);
 
 	// Phase 2: Ensure workspace root exists, clean legacy nodes, then reconcile
 	setTimeout(async () => {

@@ -99,6 +99,7 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
+    "test:update-goldens": "bun run scripts/generate-snapshots.ts",
     "test:unit": "bun test test/unit",
     "test:unit:coverage": "bun test --coverage test/unit",
     "test:integration": "npm run compile && vscode-test",
@@ -114,6 +115,7 @@
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.39.2",
+    "fast-xml-parser": "^5.5.10",
     "tree-sitter": "^0.21.0",
     "tree-sitter-python": "^0.21.0",
     "typescript": "^5.9.3",
@@ -122,6 +124,8 @@
   "dependencies": {
     "@falkordblite/linux-x64": "^8.2.3-falkordb.4.16.3",
     "falkordb": "^6.6.2",
-    "falkordblite": "^0.2.0"
+    "falkordblite": "^0.2.0",
+    "force-graph": "^1.51.2",
+    "tree-sitter-typescript": "^0.20.1"
   }
 }

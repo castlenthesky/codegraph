@@ -1,8 +1,27 @@
 import * as vscode from 'vscode';
+import * as crypto from 'crypto';
 import type { IGraphStore } from '../types/storage';
 import type { IGraphViewProvider } from '../types/visualization';
 import { DiffEngine } from '../services/sync/DiffEngine';
 import type { GraphData, IncrementalPatch } from '../services/sync/DiffEngine';
+
+function getNonce(): string {
+	return crypto.randomBytes(16).toString('base64');
+}
+
+function cpgNodeVal(label: string): number {
+	switch (label) {
+		case 'METHOD': return 4;
+		case 'TYPE_DECL': return 3;
+		case 'DIRECTORY': return 3;
+		case 'CALL': return 2;
+		case 'CONTROL_STRUCTURE': return 2;
+		case 'IDENTIFIER': return 1.5;
+		case 'LITERAL': return 1.5;
+		case 'BLOCK': return 1;
+		default: return 2;
+	}
+}
 
 /**
  * VS Code Webview Provider for the force-directed Code Property Graph visualization.
@@ -16,18 +35,24 @@ export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphView
 
 	constructor(
 		private readonly store: IGraphStore,
-		private readonly diffEngine: DiffEngine
+		private readonly diffEngine: DiffEngine,
+		private readonly extensionUri: vscode.Uri
 	) {}
 
 	public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
 		this._view = webviewView;
-		webviewView.webview.options = { enableScripts: true };
-		this._view.webview.html = this.getHtml();
+		webviewView.webview.options = {
+			enableScripts: true,
+			localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'node_modules')]
+		};
+		this._view.webview.html = this.getHtml(webviewView.webview);
 
-		this.updateView();
-
+		// Send initial data only after the webview signals it is ready.
+		// This prevents postMessage from firing before the JS message listener is registered.
 		webviewView.webview.onDidReceiveMessage(async (message) => {
-			if (message.command === 'refresh') {
+			if (message.command === 'ready') {
+				await this.updateView();
+			} else if (message.command === 'refresh') {
 				await this.refresh();
 			}
 		});
@@ -49,14 +74,16 @@ export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphView
 
 			const nodes = dbNodes.map(node => ({
 				id: node.id,
-				name: node.name,
+				name: (node as any).name ?? node.id,
 				type: node.label,
-				val: node.label === 'DIRECTORY' ? 3 : 2
+				code: (node as any).code?.substring(0, 40),
+				val: cpgNodeVal(node.label)
 			}));
 
 			const links = dbEdges.map(edge => ({
 				source: edge.source,
-				target: edge.target
+				target: edge.target,
+				type: edge.type
 			}));
 
 			this._view.webview.postMessage({ command: 'updateGraph', data: { nodes, links } });
@@ -101,43 +128,88 @@ export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphView
 		}
 	}
 
-	private getHtml() {
+	private getHtml(webview: vscode.Webview): string {
+		const nonce = getNonce();
+		const forceGraphUri = webview.asWebviewUri(
+			vscode.Uri.joinPath(this.extensionUri, 'node_modules', 'force-graph', 'dist', 'force-graph.min.js')
+		);
+		const csp = [
+			`default-src 'none'`,
+			`script-src 'nonce-${nonce}'`,
+			`style-src 'unsafe-inline'`,
+		].join('; ');
+
 		return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="${csp}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Graph View</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: var(--vscode-editor-background); }
         #graph-container { width: 100%; height: 100vh; }
     </style>
-    <!-- Use CDN for force-graph -->
-    <script src="https://unpkg.com/force-graph"></script>
+    <script nonce="${nonce}" src="${forceGraphUri}"></script>
 </head>
 <body>
     <div id="graph-container"></div>
-    <script>
+    <script nonce="${nonce}">
+        const vscodeApi = acquireVsCodeApi();
         const elem = document.getElementById('graph-container');
-        const nodeColor = getComputedStyle(document.body).getPropertyValue('--vscode-symbolIcon-classForeground') || '#d1a33a';
         const linkColor = getComputedStyle(document.body).getPropertyValue('--vscode-editorLineNumber-foreground') || '#858585';
 
-        const directoryColor = '#808080';
-        const fileColor = '#FFFFFF';
+        function nodeColor(node) {
+            switch (node.type) {
+                case 'METHOD': return '#4FC1FF';
+                case 'TYPE_DECL': return '#4EC9B0';
+                case 'CALL': return '#CE9178';
+                case 'CONTROL_STRUCTURE': return '#C586C0';
+                case 'IDENTIFIER': return '#DCDCAA';
+                case 'LITERAL': return '#B5CEA8';
+                case 'BLOCK': return '#555555';
+                case 'RETURN': return '#C586C0';
+                case 'LOCAL': return '#9CDCFE';
+                case 'DIRECTORY': return '#808080';
+                case 'FILE': return '#FFFFFF';
+                default: return '#858585';
+            }
+        }
 
         const Graph = ForceGraph()(elem)
             .width(window.innerWidth)
             .height(window.innerHeight)
-            .nodeLabel('name')
-            .nodeColor(node => node.type === 'DIRECTORY' ? directoryColor : fileColor)
-            .linkColor(() => linkColor)
-            .linkWidth(1.5)
+            .nodeLabel(node => \`\${node.type}: \${node.name || (node.code ? node.code.substring(0, 40) : node.id)}\`)
+            .nodeColor(node => nodeColor(node))
+            .linkColor(link => {
+                switch (link.type) {
+                    case 'AST': return '#444444';
+                    case 'CFG': return '#4FC1FF';
+                    case 'REACHING_DEF': return '#F44747';
+                    case 'CDG': return '#C586C0';
+                    case 'CALL': return '#CE9178';
+                    case 'SOURCE_FILE': return '#333333';
+                    default: return linkColor;
+                }
+            })
+            .linkWidth(link => {
+                switch (link.type) {
+                    case 'CFG': return 2;
+                    case 'REACHING_DEF': return 2;
+                    case 'CDG': return 1.5;
+                    case 'CALL': return 2;
+                    default: return 1;
+                }
+            })
             .nodeRelSize(4)
             .d3VelocityDecay(0.1);
 
         window.addEventListener('resize', () => {
             Graph.width(window.innerWidth).height(window.innerHeight);
         });
+
+        // Signal the extension that the webview JS is ready to receive data
+        vscodeApi.postMessage({ command: 'ready' });
 
         window.addEventListener('message', event => {
             const message = event.data;

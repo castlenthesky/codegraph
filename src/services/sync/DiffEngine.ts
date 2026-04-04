@@ -1,5 +1,19 @@
 import type { GraphNode, GraphEdge } from '../../types/nodes';
 
+function cpgNodeVal(label: string): number {
+	switch (label) {
+		case 'METHOD': return 4;
+		case 'TYPE_DECL': return 3;
+		case 'DIRECTORY': return 3;
+		case 'CALL': return 2;
+		case 'CONTROL_STRUCTURE': return 2;
+		case 'IDENTIFIER': return 1.5;
+		case 'LITERAL': return 1.5;
+		case 'BLOCK': return 1;
+		default: return 2;
+	}
+}
+
 export interface GraphData {
 	nodes: GraphNode[];
 	edges: GraphEdge[];
@@ -18,9 +32,9 @@ export interface IncrementalPatch {
 	addNodes?: Array<{ id: string; name: string; type: string; val: number }>;
 	removeNodes?: string[]; // Node IDs
 	updateNodes?: Array<{ id: string; name?: string; type?: string; val?: number }>;
-	addLinks?: Array<{ source: string; target: string }>;
+	addLinks?: Array<{ source: string; target: string; type?: string }>;
 	updateLinks?: Array<{ source: string; target: string; type?: string }>;
-	removeLinks?: Array<{ source: string; target: string }>;
+	removeLinks?: Array<{ source: string; target: string; type?: string }>;
 }
 
 /**
@@ -81,13 +95,19 @@ export class DiffEngine {
 		if (oldNode.label !== newNode.label) { return true; }
 		if (oldNode.name !== newNode.name) { return true; }
 
-		if (oldNode.label === 'FILE' && newNode.label === 'FILE') {
+		if (oldNode.label === 'FILE' && newNode.label === 'FILE' && 'size' in oldNode && 'size' in newNode) {
 			if (oldNode.size !== newNode.size) { return true; }
 			if (oldNode.modifiedAt !== newNode.modifiedAt) { return true; }
 		}
 
 		if (oldNode.label === 'DIRECTORY' && newNode.label === 'DIRECTORY') {
 			if (oldNode.modifiedAt !== newNode.modifiedAt) { return true; }
+		}
+
+		// For CPG nodes, compare by lineNumber + code snippet
+		if (oldNode.label === newNode.label && 'lineNumber' in oldNode && 'lineNumber' in newNode) {
+			if ((oldNode as any).lineNumber !== (newNode as any).lineNumber) { return true; }
+			if ((oldNode as any).code !== (newNode as any).code) { return true; }
 		}
 
 		return false;
@@ -99,9 +119,9 @@ export class DiffEngine {
 		if (diff.nodesToAdd.length > 0) {
 			patch.addNodes = diff.nodesToAdd.map(node => ({
 				id: node.id,
-				name: node.name,
+				name: node.name ?? node.id,
 				type: node.label,
-				val: node.label === 'DIRECTORY' ? 3 : 2
+				val: cpgNodeVal(node.label)
 			}));
 		}
 
@@ -112,16 +132,17 @@ export class DiffEngine {
 		if (diff.nodesToUpdate.length > 0) {
 			patch.updateNodes = diff.nodesToUpdate.map(node => ({
 				id: node.id,
-				name: node.name,
+				name: node.name ?? node.id,
 				type: node.label,
-				val: node.label === 'DIRECTORY' ? 3 : 2
+				val: cpgNodeVal(node.label)
 			}));
 		}
 
 		if (diff.edgesToAdd.length > 0) {
 			patch.addLinks = diff.edgesToAdd.map(edge => ({
 				source: edge.source,
-				target: edge.target
+				target: edge.target,
+				type: edge.type
 			}));
 		}
 
@@ -136,7 +157,8 @@ export class DiffEngine {
 		if (diff.edgesToRemove.length > 0) {
 			patch.removeLinks = diff.edgesToRemove.map(edge => ({
 				source: edge.source,
-				target: edge.target
+				target: edge.target,
+				type: edge.type
 			}));
 		}
 

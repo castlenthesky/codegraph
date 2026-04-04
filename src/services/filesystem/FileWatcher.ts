@@ -5,6 +5,7 @@ import type { IGraphStore } from '../../types/storage';
 import type { IGraphViewProvider } from '../../types/visualization';
 import type { IFileWatcher } from '../../types/filesystem';
 import type { FileNode, GraphEdge } from '../../types/nodes';
+import type { CpgPipeline } from '../../graph/cpg/CpgPipeline';
 import {
 	createDirectoryNode,
 	createFileNode,
@@ -49,7 +50,8 @@ export class FileWatcher implements IFileWatcher {
 
 	constructor(
 		private readonly store: IGraphStore,
-		private readonly graphView: IGraphViewProvider
+		private readonly graphView: IGraphViewProvider,
+		private readonly cpgPipeline?: CpgPipeline
 	) {
 		const folders = vscode.workspace.workspaceFolders;
 		// [MD-005] Warn on multi-root workspaces — only the first folder is watched
@@ -247,6 +249,14 @@ export class FileWatcher implements IFileWatcher {
 				await this.store.query(`MATCH (n {id: $id}) REMOVE n.isSoftDeleted`, { id: fileNode.id });
 
 				await this.createParentEdge(relativePath, fileNode.id);
+
+				// Trigger CPG parse for supported file types
+				if (this.cpgPipeline) {
+					try {
+						const source = await fs.promises.readFile(absolutePath, 'utf8');
+						await this.cpgPipeline.processFile(absolutePath, source);
+					} catch { /* non-fatal */ }
+				}
 			}
 
 		} catch (error: any) {
@@ -332,6 +342,11 @@ export class FileWatcher implements IFileWatcher {
 				{ id: nodeId, time: Date.now() }
 			);
 
+			// Invalidate parser cache for deleted file
+			if (this.cpgPipeline) {
+				this.cpgPipeline.invalidate(uri.fsPath);
+			}
+
 		} catch (error: any) {
 			console.error('Error handling file deletion:', error);
 			vscode.window.showErrorMessage(`Failed to delete node: ${error.message}`);
@@ -365,6 +380,14 @@ export class FileWatcher implements IFileWatcher {
 				modifiedAt: stats.mtimeMs,
 				isParsed: false
 			} as Partial<FileNode>);
+
+			// Re-parse CPG for changed file
+			if (this.cpgPipeline) {
+				try {
+					const source = await fs.promises.readFile(absolutePath, 'utf8');
+					await this.cpgPipeline.processFile(absolutePath, source);
+				} catch { /* non-fatal */ }
+			}
 
 		} catch (error: any) {
 			console.error('Error handling file change:', error);
@@ -685,6 +708,7 @@ export class FileWatcher implements IFileWatcher {
 		}
 
 		this.recentlyDeletedDirs.clear();
+		this.cpgPipeline?.dispose();
 
 		for (const watcher of this.watchers) {
 			watcher.dispose();

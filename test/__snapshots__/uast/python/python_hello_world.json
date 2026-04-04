@@ -1,0 +1,435 @@
+{
+  "nodes": [
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:FILE:0:0",
+      "label": "FILE",
+      "order": 0,
+      "code": "from .services.greeting import greet_user\n\nif __name__ == \"__main__\":\n    USERNAME = \"TESTING_USER\"\n    result = greet_user(USERNAME)\n    print(result)\n",
+      "lineNumber": 1,
+      "columnNumber": 0,
+      "offset": 0,
+      "offsetEnd": 152,
+      "filename": "test/fixtures/code_examples/python/hello_world.py"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:CALL:0:0",
+      "label": "CALL",
+      "order": 0,
+      "code": "from .services.greeting import greet_user",
+      "lineNumber": 1,
+      "columnNumber": 0,
+      "offset": 0,
+      "offsetEnd": 41,
+      "filename": "test/fixtures/code_examples/python/hello_world.py"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:0:6",
+      "label": "IDENTIFIER",
+      "order": 0,
+      "code": "services",
+      "lineNumber": 1,
+      "columnNumber": 6,
+      "offset": 6,
+      "offsetEnd": 14,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "services"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:0:15",
+      "label": "IDENTIFIER",
+      "order": 2,
+      "code": "greeting",
+      "lineNumber": 1,
+      "columnNumber": 15,
+      "offset": 15,
+      "offsetEnd": 23,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "greeting"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:0:31",
+      "label": "IDENTIFIER",
+      "order": 0,
+      "code": "greet_user",
+      "lineNumber": 1,
+      "columnNumber": 31,
+      "offset": 31,
+      "offsetEnd": 41,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "greet_user"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:CONTROL_STRUCTURE:2:0",
+      "label": "CONTROL_STRUCTURE",
+      "order": 1,
+      "code": "if __name__ == \"__main__\":\n    USERNAME = \"TESTING_USER\"\n    result = greet_user(USERNAME)\n    print(result)",
+      "lineNumber": 3,
+      "columnNumber": 0,
+      "offset": 43,
+      "offsetEnd": 151,
+      "filename": "test/fixtures/code_examples/python/hello_world.py"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:2:3",
+      "label": "IDENTIFIER",
+      "order": 0,
+      "code": "__name__",
+      "lineNumber": 3,
+      "columnNumber": 3,
+      "offset": 46,
+      "offsetEnd": 54,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "__name__"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:LITERAL:2:15",
+      "label": "LITERAL",
+      "order": 2,
+      "code": "\"__main__\"",
+      "lineNumber": 3,
+      "columnNumber": 15,
+      "offset": 58,
+      "offsetEnd": 68,
+      "filename": "test/fixtures/code_examples/python/hello_world.py"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:BLOCK:3:4",
+      "label": "BLOCK",
+      "order": 3,
+      "code": "USERNAME = \"TESTING_USER\"\n    result = greet_user(USERNAME)\n    print(result)",
+      "lineNumber": 4,
+      "columnNumber": 4,
+      "offset": 74,
+      "offsetEnd": 151,
+      "filename": "test/fixtures/code_examples/python/hello_world.py"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:LOCAL:3:4",
+      "label": "LOCAL",
+      "order": 0,
+      "code": "USERNAME = \"TESTING_USER\"",
+      "lineNumber": 4,
+      "columnNumber": 4,
+      "offset": 74,
+      "offsetEnd": 99,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "USERNAME"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:3:4",
+      "label": "IDENTIFIER",
+      "order": 0,
+      "code": "USERNAME",
+      "lineNumber": 4,
+      "columnNumber": 4,
+      "offset": 74,
+      "offsetEnd": 82,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "USERNAME"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:LITERAL:3:15",
+      "label": "LITERAL",
+      "order": 2,
+      "code": "\"TESTING_USER\"",
+      "lineNumber": 4,
+      "columnNumber": 15,
+      "offset": 85,
+      "offsetEnd": 99,
+      "filename": "test/fixtures/code_examples/python/hello_world.py"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:LOCAL:4:4",
+      "label": "LOCAL",
+      "order": 0,
+      "code": "result = greet_user(USERNAME)",
+      "lineNumber": 5,
+      "columnNumber": 4,
+      "offset": 104,
+      "offsetEnd": 133,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "result"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:4:4",
+      "label": "IDENTIFIER",
+      "order": 0,
+      "code": "result",
+      "lineNumber": 5,
+      "columnNumber": 4,
+      "offset": 104,
+      "offsetEnd": 110,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "result"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:CALL:4:13",
+      "label": "CALL",
+      "order": 2,
+      "code": "greet_user(USERNAME)",
+      "lineNumber": 5,
+      "columnNumber": 13,
+      "offset": 113,
+      "offsetEnd": 133,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "greet_user"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:4:13",
+      "label": "IDENTIFIER",
+      "order": 0,
+      "code": "greet_user",
+      "lineNumber": 5,
+      "columnNumber": 13,
+      "offset": 113,
+      "offsetEnd": 123,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "greet_user"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:4:24",
+      "label": "IDENTIFIER",
+      "order": 1,
+      "code": "USERNAME",
+      "lineNumber": 5,
+      "columnNumber": 24,
+      "offset": 124,
+      "offsetEnd": 132,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "USERNAME"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:CALL:5:4",
+      "label": "CALL",
+      "order": 0,
+      "code": "print(result)",
+      "lineNumber": 6,
+      "columnNumber": 4,
+      "offset": 138,
+      "offsetEnd": 151,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "print"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:5:4",
+      "label": "IDENTIFIER",
+      "order": 0,
+      "code": "print",
+      "lineNumber": 6,
+      "columnNumber": 4,
+      "offset": 138,
+      "offsetEnd": 143,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "print"
+    },
+    {
+      "id": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:5:10",
+      "label": "IDENTIFIER",
+      "order": 1,
+      "code": "result",
+      "lineNumber": 6,
+      "columnNumber": 10,
+      "offset": 144,
+      "offsetEnd": 150,
+      "filename": "test/fixtures/code_examples/python/hello_world.py",
+      "name": "result"
+    }
+  ],
+  "edges": [
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:0:0",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:FILE:0:0",
+      "target": "test/fixtures/code_examples/python/hello_world.py:CALL:0:0",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:0:0",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "IS_CALL_FOR_IMPORT"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:0:6",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:0:0",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:0:6",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:0:15",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:0:0",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:0:15",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:0:31",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:0:0",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:0:31",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CONTROL_STRUCTURE:2:0",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:FILE:0:0",
+      "target": "test/fixtures/code_examples/python/hello_world.py:CONTROL_STRUCTURE:2:0",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:2:3",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CONTROL_STRUCTURE:2:0",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:2:3",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:LITERAL:2:15",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CONTROL_STRUCTURE:2:0",
+      "target": "test/fixtures/code_examples/python/hello_world.py:LITERAL:2:15",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:BLOCK:3:4",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CONTROL_STRUCTURE:2:0",
+      "target": "test/fixtures/code_examples/python/hello_world.py:BLOCK:3:4",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:LOCAL:3:4",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:BLOCK:3:4",
+      "target": "test/fixtures/code_examples/python/hello_world.py:LOCAL:3:4",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:3:4",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:LOCAL:3:4",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:3:4",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:LITERAL:3:15",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:LOCAL:3:4",
+      "target": "test/fixtures/code_examples/python/hello_world.py:LITERAL:3:15",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:LOCAL:4:4",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:BLOCK:3:4",
+      "target": "test/fixtures/code_examples/python/hello_world.py:LOCAL:4:4",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:4:4",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:LOCAL:4:4",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:4:4",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:4:13",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:LOCAL:4:4",
+      "target": "test/fixtures/code_examples/python/hello_world.py:CALL:4:13",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:4:13",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:4:13",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:4:13",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:4:24",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:4:13",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:4:24",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:5:4",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:BLOCK:3:4",
+      "target": "test/fixtures/code_examples/python/hello_world.py:CALL:5:4",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:5:4",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:5:4",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:5:4",
+      "type": "AST"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:5:10",
+      "target": "file:test/fixtures/code_examples/python/hello_world.py",
+      "type": "SOURCE_FILE"
+    },
+    {
+      "source": "test/fixtures/code_examples/python/hello_world.py:CALL:5:4",
+      "target": "test/fixtures/code_examples/python/hello_world.py:IDENTIFIER:5:10",
+      "type": "AST"
+    }
+  ]
+}

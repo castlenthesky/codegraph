@@ -1,4 +1,5 @@
 import type { GraphNode, GraphEdge } from './nodes';
+import type { CpgNode, CpgEdge } from './cpg';
 
 /**
  * Interface for graph storage backends.
@@ -14,4 +15,8 @@ export interface IGraphStore {
 	updateNode(nodeId: string, updates: Partial<GraphNode>): Promise<void>;
 	getAllNodesAndEdges(): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }>;
 	clearGraph(): Promise<void>;
+	createNodes(nodes: CpgNode[]): Promise<void>;
+	createEdges(edges: CpgEdge[]): Promise<void>;
+	deleteNodes(nodeIds: string[]): Promise<void>;
+	replaceFileSubgraph(filePath: string, nodes: CpgNode[], edges: CpgEdge[]): Promise<void>;
 }

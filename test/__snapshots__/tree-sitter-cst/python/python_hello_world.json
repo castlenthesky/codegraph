@@ -1,0 +1,441 @@
+{
+  "type": "module",
+  "start": {
+    "row": 0,
+    "column": 0
+  },
+  "end": {
+    "row": 6,
+    "column": 0
+  },
+  "children": [
+    {
+      "type": "import_from_statement",
+      "start": {
+        "row": 0,
+        "column": 0
+      },
+      "end": {
+        "row": 0,
+        "column": 41
+      },
+      "children": [
+        {
+          "type": "relative_import",
+          "start": {
+            "row": 0,
+            "column": 5
+          },
+          "end": {
+            "row": 0,
+            "column": 23
+          },
+          "children": [
+            {
+              "type": "import_prefix",
+              "start": {
+                "row": 0,
+                "column": 5
+              },
+              "end": {
+                "row": 0,
+                "column": 6
+              },
+              "children": [],
+              "text": "."
+            },
+            {
+              "type": "dotted_name",
+              "start": {
+                "row": 0,
+                "column": 6
+              },
+              "end": {
+                "row": 0,
+                "column": 23
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 0,
+                    "column": 6
+                  },
+                  "end": {
+                    "row": 0,
+                    "column": 14
+                  },
+                  "children": [],
+                  "text": "services"
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 0,
+                    "column": 15
+                  },
+                  "end": {
+                    "row": 0,
+                    "column": 23
+                  },
+                  "children": [],
+                  "text": "greeting"
+                }
+              ]
+            }
+          ],
+          "field": "module_name"
+        },
+        {
+          "type": "dotted_name",
+          "start": {
+            "row": 0,
+            "column": 31
+          },
+          "end": {
+            "row": 0,
+            "column": 41
+          },
+          "children": [
+            {
+              "type": "identifier",
+              "start": {
+                "row": 0,
+                "column": 31
+              },
+              "end": {
+                "row": 0,
+                "column": 41
+              },
+              "children": [],
+              "text": "greet_user"
+            }
+          ],
+          "field": "name"
+        }
+      ]
+    },
+    {
+      "type": "if_statement",
+      "start": {
+        "row": 2,
+        "column": 0
+      },
+      "end": {
+        "row": 5,
+        "column": 17
+      },
+      "children": [
+        {
+          "type": "comparison_operator",
+          "start": {
+            "row": 2,
+            "column": 3
+          },
+          "end": {
+            "row": 2,
+            "column": 25
+          },
+          "children": [
+            {
+              "type": "identifier",
+              "start": {
+                "row": 2,
+                "column": 3
+              },
+              "end": {
+                "row": 2,
+                "column": 11
+              },
+              "children": [],
+              "text": "__name__"
+            },
+            {
+              "type": "string",
+              "start": {
+                "row": 2,
+                "column": 15
+              },
+              "end": {
+                "row": 2,
+                "column": 25
+              },
+              "children": [
+                {
+                  "type": "string_start",
+                  "start": {
+                    "row": 2,
+                    "column": 15
+                  },
+                  "end": {
+                    "row": 2,
+                    "column": 16
+                  },
+                  "children": [],
+                  "text": "\""
+                },
+                {
+                  "type": "string_content",
+                  "start": {
+                    "row": 2,
+                    "column": 16
+                  },
+                  "end": {
+                    "row": 2,
+                    "column": 24
+                  },
+                  "children": [],
+                  "text": "__main__"
+                },
+                {
+                  "type": "string_end",
+                  "start": {
+                    "row": 2,
+                    "column": 24
+                  },
+                  "end": {
+                    "row": 2,
+                    "column": 25
+                  },
+                  "children": [],
+                  "text": "\""
+                }
+              ]
+            }
+          ],
+          "field": "condition"
+        },
+        {
+          "type": "block",
+          "start": {
+            "row": 3,
+            "column": 4
+          },
+          "end": {
+            "row": 5,
+            "column": 17
+          },
+          "children": [
+            {
+              "type": "assignment",
+              "start": {
+                "row": 3,
+                "column": 4
+              },
+              "end": {
+                "row": 3,
+                "column": 29
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 3,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 3,
+                    "column": 12
+                  },
+                  "children": [],
+                  "field": "left",
+                  "text": "USERNAME"
+                },
+                {
+                  "type": "string",
+                  "start": {
+                    "row": 3,
+                    "column": 15
+                  },
+                  "end": {
+                    "row": 3,
+                    "column": 29
+                  },
+                  "children": [
+                    {
+                      "type": "string_start",
+                      "start": {
+                        "row": 3,
+                        "column": 15
+                      },
+                      "end": {
+                        "row": 3,
+                        "column": 16
+                      },
+                      "children": [],
+                      "text": "\""
+                    },
+                    {
+                      "type": "string_content",
+                      "start": {
+                        "row": 3,
+                        "column": 16
+                      },
+                      "end": {
+                        "row": 3,
+                        "column": 28
+                      },
+                      "children": [],
+                      "text": "TESTING_USER"
+                    },
+                    {
+                      "type": "string_end",
+                      "start": {
+                        "row": 3,
+                        "column": 28
+                      },
+                      "end": {
+                        "row": 3,
+                        "column": 29
+                      },
+                      "children": [],
+                      "text": "\""
+                    }
+                  ],
+                  "field": "right"
+                }
+              ]
+            },
+            {
+              "type": "assignment",
+              "start": {
+                "row": 4,
+                "column": 4
+              },
+              "end": {
+                "row": 4,
+                "column": 33
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 4,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 4,
+                    "column": 10
+                  },
+                  "children": [],
+                  "field": "left",
+                  "text": "result"
+                },
+                {
+                  "type": "call",
+                  "start": {
+                    "row": 4,
+                    "column": 13
+                  },
+                  "end": {
+                    "row": 4,
+                    "column": 33
+                  },
+                  "children": [
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "row": 4,
+                        "column": 13
+                      },
+                      "end": {
+                        "row": 4,
+                        "column": 23
+                      },
+                      "children": [],
+                      "field": "function",
+                      "text": "greet_user"
+                    },
+                    {
+                      "type": "argument_list",
+                      "start": {
+                        "row": 4,
+                        "column": 23
+                      },
+                      "end": {
+                        "row": 4,
+                        "column": 33
+                      },
+                      "children": [
+                        {
+                          "type": "identifier",
+                          "start": {
+                            "row": 4,
+                            "column": 24
+                          },
+                          "end": {
+                            "row": 4,
+                            "column": 32
+                          },
+                          "children": [],
+                          "text": "USERNAME"
+                        }
+                      ],
+                      "field": "arguments"
+                    }
+                  ],
+                  "field": "right"
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "start": {
+                "row": 5,
+                "column": 4
+              },
+              "end": {
+                "row": 5,
+                "column": 17
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 5,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 5,
+                    "column": 9
+                  },
+                  "children": [],
+                  "field": "function",
+                  "text": "print"
+                },
+                {
+                  "type": "argument_list",
+                  "start": {
+                    "row": 5,
+                    "column": 9
+                  },
+                  "end": {
+                    "row": 5,
+                    "column": 17
+                  },
+                  "children": [
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "row": 5,
+                        "column": 10
+                      },
+                      "end": {
+                        "row": 5,
+                        "column": 16
+                      },
+                      "children": [],
+                      "text": "result"
+                    }
+                  ],
+                  "field": "arguments"
+                }
+              ]
+            }
+          ],
+          "field": "consequence"
+        }
+      ]
+    }
+  ]
+}

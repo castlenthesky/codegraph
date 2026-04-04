@@ -1,0 +1,391 @@
+{
+  "type": "program",
+  "start": {
+    "row": 0,
+    "column": 0
+  },
+  "end": {
+    "row": 5,
+    "column": 0
+  },
+  "children": [
+    {
+      "type": "lexical_declaration",
+      "start": {
+        "row": 0,
+        "column": 0
+      },
+      "end": {
+        "row": 0,
+        "column": 53
+      },
+      "children": [
+        {
+          "type": "variable_declarator",
+          "start": {
+            "row": 0,
+            "column": 6
+          },
+          "end": {
+            "row": 0,
+            "column": 52
+          },
+          "children": [
+            {
+              "type": "object_pattern",
+              "start": {
+                "row": 0,
+                "column": 6
+              },
+              "end": {
+                "row": 0,
+                "column": 19
+              },
+              "children": [
+                {
+                  "type": "shorthand_property_identifier_pattern",
+                  "start": {
+                    "row": 0,
+                    "column": 8
+                  },
+                  "end": {
+                    "row": 0,
+                    "column": 17
+                  },
+                  "children": [],
+                  "text": "greetUser"
+                }
+              ],
+              "field": "name"
+            },
+            {
+              "type": "call_expression",
+              "start": {
+                "row": 0,
+                "column": 22
+              },
+              "end": {
+                "row": 0,
+                "column": 52
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 0,
+                    "column": 22
+                  },
+                  "end": {
+                    "row": 0,
+                    "column": 29
+                  },
+                  "children": [],
+                  "field": "function",
+                  "text": "require"
+                },
+                {
+                  "type": "arguments",
+                  "start": {
+                    "row": 0,
+                    "column": 29
+                  },
+                  "end": {
+                    "row": 0,
+                    "column": 52
+                  },
+                  "children": [
+                    {
+                      "type": "string",
+                      "start": {
+                        "row": 0,
+                        "column": 30
+                      },
+                      "end": {
+                        "row": 0,
+                        "column": 51
+                      },
+                      "children": [
+                        {
+                          "type": "string_fragment",
+                          "start": {
+                            "row": 0,
+                            "column": 31
+                          },
+                          "end": {
+                            "row": 0,
+                            "column": 50
+                          },
+                          "children": [],
+                          "text": "./services/greeting"
+                        }
+                      ]
+                    }
+                  ],
+                  "field": "arguments"
+                }
+              ],
+              "field": "value"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "lexical_declaration",
+      "start": {
+        "row": 2,
+        "column": 0
+      },
+      "end": {
+        "row": 2,
+        "column": 32
+      },
+      "children": [
+        {
+          "type": "variable_declarator",
+          "start": {
+            "row": 2,
+            "column": 6
+          },
+          "end": {
+            "row": 2,
+            "column": 31
+          },
+          "children": [
+            {
+              "type": "identifier",
+              "start": {
+                "row": 2,
+                "column": 6
+              },
+              "end": {
+                "row": 2,
+                "column": 14
+              },
+              "children": [],
+              "field": "name",
+              "text": "USERNAME"
+            },
+            {
+              "type": "string",
+              "start": {
+                "row": 2,
+                "column": 17
+              },
+              "end": {
+                "row": 2,
+                "column": 31
+              },
+              "children": [
+                {
+                  "type": "string_fragment",
+                  "start": {
+                    "row": 2,
+                    "column": 18
+                  },
+                  "end": {
+                    "row": 2,
+                    "column": 30
+                  },
+                  "children": [],
+                  "text": "TESTING_USER"
+                }
+              ],
+              "field": "value"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "lexical_declaration",
+      "start": {
+        "row": 3,
+        "column": 0
+      },
+      "end": {
+        "row": 3,
+        "column": 35
+      },
+      "children": [
+        {
+          "type": "variable_declarator",
+          "start": {
+            "row": 3,
+            "column": 6
+          },
+          "end": {
+            "row": 3,
+            "column": 34
+          },
+          "children": [
+            {
+              "type": "identifier",
+              "start": {
+                "row": 3,
+                "column": 6
+              },
+              "end": {
+                "row": 3,
+                "column": 12
+              },
+              "children": [],
+              "field": "name",
+              "text": "result"
+            },
+            {
+              "type": "call_expression",
+              "start": {
+                "row": 3,
+                "column": 15
+              },
+              "end": {
+                "row": 3,
+                "column": 34
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 3,
+                    "column": 15
+                  },
+                  "end": {
+                    "row": 3,
+                    "column": 24
+                  },
+                  "children": [],
+                  "field": "function",
+                  "text": "greetUser"
+                },
+                {
+                  "type": "arguments",
+                  "start": {
+                    "row": 3,
+                    "column": 24
+                  },
+                  "end": {
+                    "row": 3,
+                    "column": 34
+                  },
+                  "children": [
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "row": 3,
+                        "column": 25
+                      },
+                      "end": {
+                        "row": 3,
+                        "column": 33
+                      },
+                      "children": [],
+                      "text": "USERNAME"
+                    }
+                  ],
+                  "field": "arguments"
+                }
+              ],
+              "field": "value"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "expression_statement",
+      "start": {
+        "row": 4,
+        "column": 0
+      },
+      "end": {
+        "row": 4,
+        "column": 20
+      },
+      "children": [
+        {
+          "type": "call_expression",
+          "start": {
+            "row": 4,
+            "column": 0
+          },
+          "end": {
+            "row": 4,
+            "column": 19
+          },
+          "children": [
+            {
+              "type": "member_expression",
+              "start": {
+                "row": 4,
+                "column": 0
+              },
+              "end": {
+                "row": 4,
+                "column": 11
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 4,
+                    "column": 0
+                  },
+                  "end": {
+                    "row": 4,
+                    "column": 7
+                  },
+                  "children": [],
+                  "field": "object",
+                  "text": "console"
+                },
+                {
+                  "type": "property_identifier",
+                  "start": {
+                    "row": 4,
+                    "column": 8
+                  },
+                  "end": {
+                    "row": 4,
+                    "column": 11
+                  },
+                  "children": [],
+                  "field": "property",
+                  "text": "log"
+                }
+              ],
+              "field": "function"
+            },
+            {
+              "type": "arguments",
+              "start": {
+                "row": 4,
+                "column": 11
+              },
+              "end": {
+                "row": 4,
+                "column": 19
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 4,
+                    "column": 12
+                  },
+                  "end": {
+                    "row": 4,
+                    "column": 18
+                  },
+                  "children": [],
+                  "text": "result"
+                }
+              ],
+              "field": "arguments"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

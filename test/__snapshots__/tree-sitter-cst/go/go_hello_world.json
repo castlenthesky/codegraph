@@ -1,0 +1,524 @@
+{
+  "type": "source_file",
+  "start": {
+    "row": 0,
+    "column": 0
+  },
+  "end": {
+    "row": 12,
+    "column": 0
+  },
+  "children": [
+    {
+      "type": "package_clause",
+      "start": {
+        "row": 0,
+        "column": 0
+      },
+      "end": {
+        "row": 0,
+        "column": 12
+      },
+      "children": [
+        {
+          "type": "package_identifier",
+          "start": {
+            "row": 0,
+            "column": 8
+          },
+          "end": {
+            "row": 0,
+            "column": 12
+          },
+          "children": [],
+          "text": "main"
+        }
+      ]
+    },
+    {
+      "type": "import_declaration",
+      "start": {
+        "row": 2,
+        "column": 0
+      },
+      "end": {
+        "row": 5,
+        "column": 1
+      },
+      "children": [
+        {
+          "type": "import_spec_list",
+          "start": {
+            "row": 2,
+            "column": 7
+          },
+          "end": {
+            "row": 5,
+            "column": 1
+          },
+          "children": [
+            {
+              "type": "import_spec",
+              "start": {
+                "row": 3,
+                "column": 1
+              },
+              "end": {
+                "row": 3,
+                "column": 6
+              },
+              "children": [
+                {
+                  "type": "interpreted_string_literal",
+                  "start": {
+                    "row": 3,
+                    "column": 1
+                  },
+                  "end": {
+                    "row": 3,
+                    "column": 6
+                  },
+                  "children": [
+                    {
+                      "type": "interpreted_string_literal_content",
+                      "start": {
+                        "row": 3,
+                        "column": 2
+                      },
+                      "end": {
+                        "row": 3,
+                        "column": 5
+                      },
+                      "children": [],
+                      "text": "fmt"
+                    }
+                  ],
+                  "field": "path"
+                }
+              ]
+            },
+            {
+              "type": "import_spec",
+              "start": {
+                "row": 4,
+                "column": 1
+              },
+              "end": {
+                "row": 4,
+                "column": 66
+              },
+              "children": [
+                {
+                  "type": "interpreted_string_literal",
+                  "start": {
+                    "row": 4,
+                    "column": 1
+                  },
+                  "end": {
+                    "row": 4,
+                    "column": 66
+                  },
+                  "children": [
+                    {
+                      "type": "interpreted_string_literal_content",
+                      "start": {
+                        "row": 4,
+                        "column": 2
+                      },
+                      "end": {
+                        "row": 4,
+                        "column": 65
+                      },
+                      "children": [],
+                      "text": "taint-wrangler/test/fixtures/code_examples/go/services/greeting"
+                    }
+                  ],
+                  "field": "path"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function_declaration",
+      "start": {
+        "row": 7,
+        "column": 0
+      },
+      "end": {
+        "row": 11,
+        "column": 1
+      },
+      "children": [
+        {
+          "type": "identifier",
+          "start": {
+            "row": 7,
+            "column": 5
+          },
+          "end": {
+            "row": 7,
+            "column": 9
+          },
+          "children": [],
+          "field": "name",
+          "text": "main"
+        },
+        {
+          "type": "parameter_list",
+          "start": {
+            "row": 7,
+            "column": 9
+          },
+          "end": {
+            "row": 7,
+            "column": 11
+          },
+          "children": [],
+          "field": "parameters",
+          "text": "()"
+        },
+        {
+          "type": "block",
+          "start": {
+            "row": 7,
+            "column": 12
+          },
+          "end": {
+            "row": 11,
+            "column": 1
+          },
+          "children": [
+            {
+              "type": "statement_list",
+              "start": {
+                "row": 8,
+                "column": 1
+              },
+              "end": {
+                "row": 11,
+                "column": 0
+              },
+              "children": [
+                {
+                  "type": "short_var_declaration",
+                  "start": {
+                    "row": 8,
+                    "column": 1
+                  },
+                  "end": {
+                    "row": 8,
+                    "column": 27
+                  },
+                  "children": [
+                    {
+                      "type": "expression_list",
+                      "start": {
+                        "row": 8,
+                        "column": 1
+                      },
+                      "end": {
+                        "row": 8,
+                        "column": 9
+                      },
+                      "children": [
+                        {
+                          "type": "identifier",
+                          "start": {
+                            "row": 8,
+                            "column": 1
+                          },
+                          "end": {
+                            "row": 8,
+                            "column": 9
+                          },
+                          "children": [],
+                          "text": "username"
+                        }
+                      ],
+                      "field": "left"
+                    },
+                    {
+                      "type": "expression_list",
+                      "start": {
+                        "row": 8,
+                        "column": 13
+                      },
+                      "end": {
+                        "row": 8,
+                        "column": 27
+                      },
+                      "children": [
+                        {
+                          "type": "interpreted_string_literal",
+                          "start": {
+                            "row": 8,
+                            "column": 13
+                          },
+                          "end": {
+                            "row": 8,
+                            "column": 27
+                          },
+                          "children": [
+                            {
+                              "type": "interpreted_string_literal_content",
+                              "start": {
+                                "row": 8,
+                                "column": 14
+                              },
+                              "end": {
+                                "row": 8,
+                                "column": 26
+                              },
+                              "children": [],
+                              "text": "TESTING_USER"
+                            }
+                          ]
+                        }
+                      ],
+                      "field": "right"
+                    }
+                  ]
+                },
+                {
+                  "type": "short_var_declaration",
+                  "start": {
+                    "row": 9,
+                    "column": 1
+                  },
+                  "end": {
+                    "row": 9,
+                    "column": 39
+                  },
+                  "children": [
+                    {
+                      "type": "expression_list",
+                      "start": {
+                        "row": 9,
+                        "column": 1
+                      },
+                      "end": {
+                        "row": 9,
+                        "column": 7
+                      },
+                      "children": [
+                        {
+                          "type": "identifier",
+                          "start": {
+                            "row": 9,
+                            "column": 1
+                          },
+                          "end": {
+                            "row": 9,
+                            "column": 7
+                          },
+                          "children": [],
+                          "text": "result"
+                        }
+                      ],
+                      "field": "left"
+                    },
+                    {
+                      "type": "expression_list",
+                      "start": {
+                        "row": 9,
+                        "column": 11
+                      },
+                      "end": {
+                        "row": 9,
+                        "column": 39
+                      },
+                      "children": [
+                        {
+                          "type": "call_expression",
+                          "start": {
+                            "row": 9,
+                            "column": 11
+                          },
+                          "end": {
+                            "row": 9,
+                            "column": 39
+                          },
+                          "children": [
+                            {
+                              "type": "selector_expression",
+                              "start": {
+                                "row": 9,
+                                "column": 11
+                              },
+                              "end": {
+                                "row": 9,
+                                "column": 29
+                              },
+                              "children": [
+                                {
+                                  "type": "identifier",
+                                  "start": {
+                                    "row": 9,
+                                    "column": 11
+                                  },
+                                  "end": {
+                                    "row": 9,
+                                    "column": 19
+                                  },
+                                  "children": [],
+                                  "field": "operand",
+                                  "text": "greeting"
+                                },
+                                {
+                                  "type": "field_identifier",
+                                  "start": {
+                                    "row": 9,
+                                    "column": 20
+                                  },
+                                  "end": {
+                                    "row": 9,
+                                    "column": 29
+                                  },
+                                  "children": [],
+                                  "field": "field",
+                                  "text": "GreetUser"
+                                }
+                              ],
+                              "field": "function"
+                            },
+                            {
+                              "type": "argument_list",
+                              "start": {
+                                "row": 9,
+                                "column": 29
+                              },
+                              "end": {
+                                "row": 9,
+                                "column": 39
+                              },
+                              "children": [
+                                {
+                                  "type": "identifier",
+                                  "start": {
+                                    "row": 9,
+                                    "column": 30
+                                  },
+                                  "end": {
+                                    "row": 9,
+                                    "column": 38
+                                  },
+                                  "children": [],
+                                  "text": "username"
+                                }
+                              ],
+                              "field": "arguments"
+                            }
+                          ]
+                        }
+                      ],
+                      "field": "right"
+                    }
+                  ]
+                },
+                {
+                  "type": "expression_statement",
+                  "start": {
+                    "row": 10,
+                    "column": 1
+                  },
+                  "end": {
+                    "row": 10,
+                    "column": 20
+                  },
+                  "children": [
+                    {
+                      "type": "call_expression",
+                      "start": {
+                        "row": 10,
+                        "column": 1
+                      },
+                      "end": {
+                        "row": 10,
+                        "column": 20
+                      },
+                      "children": [
+                        {
+                          "type": "selector_expression",
+                          "start": {
+                            "row": 10,
+                            "column": 1
+                          },
+                          "end": {
+                            "row": 10,
+                            "column": 12
+                          },
+                          "children": [
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "row": 10,
+                                "column": 1
+                              },
+                              "end": {
+                                "row": 10,
+                                "column": 4
+                              },
+                              "children": [],
+                              "field": "operand",
+                              "text": "fmt"
+                            },
+                            {
+                              "type": "field_identifier",
+                              "start": {
+                                "row": 10,
+                                "column": 5
+                              },
+                              "end": {
+                                "row": 10,
+                                "column": 12
+                              },
+                              "children": [],
+                              "field": "field",
+                              "text": "Println"
+                            }
+                          ],
+                          "field": "function"
+                        },
+                        {
+                          "type": "argument_list",
+                          "start": {
+                            "row": 10,
+                            "column": 12
+                          },
+                          "end": {
+                            "row": 10,
+                            "column": 20
+                          },
+                          "children": [
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "row": 10,
+                                "column": 13
+                              },
+                              "end": {
+                                "row": 10,
+                                "column": 19
+                              },
+                              "children": [],
+                              "text": "result"
+                            }
+                          ],
+                          "field": "arguments"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "field": "body"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,433 @@
+{
+  "type": "source_file",
+  "start": {
+    "row": 0,
+    "column": 0
+  },
+  "end": {
+    "row": 9,
+    "column": 0
+  },
+  "children": [
+    {
+      "type": "mod_item",
+      "start": {
+        "row": 0,
+        "column": 0
+      },
+      "end": {
+        "row": 2,
+        "column": 1
+      },
+      "children": [
+        {
+          "type": "identifier",
+          "start": {
+            "row": 0,
+            "column": 4
+          },
+          "end": {
+            "row": 0,
+            "column": 12
+          },
+          "children": [],
+          "field": "name",
+          "text": "services"
+        },
+        {
+          "type": "declaration_list",
+          "start": {
+            "row": 0,
+            "column": 13
+          },
+          "end": {
+            "row": 2,
+            "column": 1
+          },
+          "children": [
+            {
+              "type": "mod_item",
+              "start": {
+                "row": 1,
+                "column": 4
+              },
+              "end": {
+                "row": 1,
+                "column": 21
+              },
+              "children": [
+                {
+                  "type": "visibility_modifier",
+                  "start": {
+                    "row": 1,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 1,
+                    "column": 7
+                  },
+                  "children": [],
+                  "text": "pub"
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 1,
+                    "column": 12
+                  },
+                  "end": {
+                    "row": 1,
+                    "column": 20
+                  },
+                  "children": [],
+                  "field": "name",
+                  "text": "greeting"
+                }
+              ]
+            }
+          ],
+          "field": "body"
+        }
+      ]
+    },
+    {
+      "type": "function_item",
+      "start": {
+        "row": 4,
+        "column": 0
+      },
+      "end": {
+        "row": 8,
+        "column": 1
+      },
+      "children": [
+        {
+          "type": "identifier",
+          "start": {
+            "row": 4,
+            "column": 3
+          },
+          "end": {
+            "row": 4,
+            "column": 7
+          },
+          "children": [],
+          "field": "name",
+          "text": "main"
+        },
+        {
+          "type": "parameters",
+          "start": {
+            "row": 4,
+            "column": 7
+          },
+          "end": {
+            "row": 4,
+            "column": 9
+          },
+          "children": [],
+          "field": "parameters",
+          "text": "()"
+        },
+        {
+          "type": "block",
+          "start": {
+            "row": 4,
+            "column": 10
+          },
+          "end": {
+            "row": 8,
+            "column": 1
+          },
+          "children": [
+            {
+              "type": "let_declaration",
+              "start": {
+                "row": 5,
+                "column": 4
+              },
+              "end": {
+                "row": 5,
+                "column": 34
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 5,
+                    "column": 8
+                  },
+                  "end": {
+                    "row": 5,
+                    "column": 16
+                  },
+                  "children": [],
+                  "field": "pattern",
+                  "text": "username"
+                },
+                {
+                  "type": "string_literal",
+                  "start": {
+                    "row": 5,
+                    "column": 19
+                  },
+                  "end": {
+                    "row": 5,
+                    "column": 33
+                  },
+                  "children": [
+                    {
+                      "type": "string_content",
+                      "start": {
+                        "row": 5,
+                        "column": 20
+                      },
+                      "end": {
+                        "row": 5,
+                        "column": 32
+                      },
+                      "children": [],
+                      "text": "TESTING_USER"
+                    }
+                  ],
+                  "field": "value"
+                }
+              ]
+            },
+            {
+              "type": "let_declaration",
+              "start": {
+                "row": 6,
+                "column": 4
+              },
+              "end": {
+                "row": 6,
+                "column": 58
+              },
+              "children": [
+                {
+                  "type": "identifier",
+                  "start": {
+                    "row": 6,
+                    "column": 8
+                  },
+                  "end": {
+                    "row": 6,
+                    "column": 14
+                  },
+                  "children": [],
+                  "field": "pattern",
+                  "text": "result"
+                },
+                {
+                  "type": "call_expression",
+                  "start": {
+                    "row": 6,
+                    "column": 17
+                  },
+                  "end": {
+                    "row": 6,
+                    "column": 57
+                  },
+                  "children": [
+                    {
+                      "type": "scoped_identifier",
+                      "start": {
+                        "row": 6,
+                        "column": 17
+                      },
+                      "end": {
+                        "row": 6,
+                        "column": 47
+                      },
+                      "children": [
+                        {
+                          "type": "scoped_identifier",
+                          "start": {
+                            "row": 6,
+                            "column": 17
+                          },
+                          "end": {
+                            "row": 6,
+                            "column": 35
+                          },
+                          "children": [
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "row": 6,
+                                "column": 17
+                              },
+                              "end": {
+                                "row": 6,
+                                "column": 25
+                              },
+                              "children": [],
+                              "field": "path",
+                              "text": "services"
+                            },
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "row": 6,
+                                "column": 27
+                              },
+                              "end": {
+                                "row": 6,
+                                "column": 35
+                              },
+                              "children": [],
+                              "field": "name",
+                              "text": "greeting"
+                            }
+                          ],
+                          "field": "path"
+                        },
+                        {
+                          "type": "identifier",
+                          "start": {
+                            "row": 6,
+                            "column": 37
+                          },
+                          "end": {
+                            "row": 6,
+                            "column": 47
+                          },
+                          "children": [],
+                          "field": "name",
+                          "text": "greet_user"
+                        }
+                      ],
+                      "field": "function"
+                    },
+                    {
+                      "type": "arguments",
+                      "start": {
+                        "row": 6,
+                        "column": 47
+                      },
+                      "end": {
+                        "row": 6,
+                        "column": 57
+                      },
+                      "children": [
+                        {
+                          "type": "identifier",
+                          "start": {
+                            "row": 6,
+                            "column": 48
+                          },
+                          "end": {
+                            "row": 6,
+                            "column": 56
+                          },
+                          "children": [],
+                          "text": "username"
+                        }
+                      ],
+                      "field": "arguments"
+                    }
+                  ],
+                  "field": "value"
+                }
+              ]
+            },
+            {
+              "type": "expression_statement",
+              "start": {
+                "row": 7,
+                "column": 4
+              },
+              "end": {
+                "row": 7,
+                "column": 27
+              },
+              "children": [
+                {
+                  "type": "macro_invocation",
+                  "start": {
+                    "row": 7,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 7,
+                    "column": 26
+                  },
+                  "children": [
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "row": 7,
+                        "column": 4
+                      },
+                      "end": {
+                        "row": 7,
+                        "column": 11
+                      },
+                      "children": [],
+                      "field": "macro",
+                      "text": "println"
+                    },
+                    {
+                      "type": "token_tree",
+                      "start": {
+                        "row": 7,
+                        "column": 12
+                      },
+                      "end": {
+                        "row": 7,
+                        "column": 26
+                      },
+                      "children": [
+                        {
+                          "type": "string_literal",
+                          "start": {
+                            "row": 7,
+                            "column": 13
+                          },
+                          "end": {
+                            "row": 7,
+                            "column": 17
+                          },
+                          "children": [
+                            {
+                              "type": "string_content",
+                              "start": {
+                                "row": 7,
+                                "column": 14
+                              },
+                              "end": {
+                                "row": 7,
+                                "column": 16
+                              },
+                              "children": [],
+                              "text": "{}"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "identifier",
+                          "start": {
+                            "row": 7,
+                            "column": 19
+                          },
+                          "end": {
+                            "row": 7,
+                            "column": 25
+                          },
+                          "children": [],
+                          "text": "result"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "field": "body"
+        }
+      ]
+    }
+  ]
+}
