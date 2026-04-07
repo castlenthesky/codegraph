@@ -18,6 +18,9 @@
 	"exclude": [
 		"node_modules",
 		".vscode-test",
-		"test"
+		"test",
+		"references",
+		"scripts",
+		"media"
 	]
 }

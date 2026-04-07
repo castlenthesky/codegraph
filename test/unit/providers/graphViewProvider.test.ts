@@ -30,6 +30,7 @@ function makeFakeWebviewView(): any {
 			postMessage(msg: any) {
 				postedMessages.push(msg);
 			},
+			asWebviewUri(_uri: any) { return { toString: () => 'vscode-resource://fake' }; },
 			onDidReceiveMessage(handler: (msg: any) => void) {
 				messageHandlers.push(handler);
 				// Return a disposable-like object
@@ -137,6 +138,8 @@ function makeStore(nodes: GraphNode[] = [], edges: GraphEdge[] = []): any {
 // ---------------------------------------------------------------------------
 
 describe('GraphViewProvider — initialization', () => {
+	beforeEach(() => { postedMessages.length = 0; });
+
 	test('can be constructed without throwing', () => {
 		const store = makeStore();
 		const diffEngine = new DiffEngine();
@@ -205,12 +208,8 @@ describe('GraphViewProvider — HTML generation (getHtml)', () => {
 		expect(html.toLowerCase()).toContain('<body>');
 	});
 
-	test('HTML references the force-graph CDN script', () => {
+	test('HTML references the force-graph script', () => {
 		expect(html).toContain('force-graph');
-	});
-
-	test('HTML includes the unpkg CDN domain', () => {
-		expect(html).toContain('unpkg.com');
 	});
 
 	test('HTML includes the graph-container element', () => {
@@ -228,62 +227,31 @@ describe('GraphViewProvider — HTML generation (getHtml)', () => {
 		const closeCount = (html.match(/<\/div>/gi) ?? []).length;
 		expect(openCount).toBe(closeCount);
 	});
-
-	test('HTML contains a nodeColor function for graph rendering', () => {
-		expect(html).toContain('nodeColor');
-	});
-
-	test('HTML contains window.addEventListener for message handling', () => {
-		expect(html).toContain("window.addEventListener('message'");
-	});
-
-	test('HTML handles incrementalUpdate command in message listener', () => {
-		expect(html).toContain('incrementalUpdate');
-	});
-
-	test('HTML handles updateGraph command in message listener', () => {
-		expect(html).toContain('updateGraph');
-	});
 });
 
 // ---------------------------------------------------------------------------
-// Node color mapping (embedded in getHtml output)
+// HTML references external webview script
 // ---------------------------------------------------------------------------
 
-describe('GraphViewProvider — node color mapping (in HTML)', () => {
+describe('GraphViewProvider — HTML references external webview script', () => {
 	let html: string;
 
 	beforeEach(() => {
+		postedMessages.length = 0;
 		const store = makeStore();
 		const diffEngine = new DiffEngine();
-		const provider = new GraphViewProvider(store, diffEngine);
+		const provider = new GraphViewProvider(store, diffEngine, undefined as any);
 		const webviewView = makeFakeWebviewView();
 		provider.resolveWebviewView(webviewView as any, {} as any, {} as any);
 		html = webviewView.webview.html;
 	});
 
-	test('METHOD maps to #4FC1FF', () => {
-		expect(html).toContain("case 'METHOD': return '#4FC1FF'");
+	test('HTML references graphWebview.js', () => {
+		expect(html).toContain('graphWebview.js');
 	});
 
-	test('TYPE_DECL maps to #4EC9B0', () => {
-		expect(html).toContain("case 'TYPE_DECL': return '#4EC9B0'");
-	});
-
-	test('CALL maps to #CE9178', () => {
-		expect(html).toContain("case 'CALL': return '#CE9178'");
-	});
-
-	test('CONTROL_STRUCTURE maps to #C586C0', () => {
-		expect(html).toContain("case 'CONTROL_STRUCTURE': return '#C586C0'");
-	});
-
-	test('BLOCK maps to #555555', () => {
-		expect(html).toContain("case 'BLOCK': return '#555555'");
-	});
-
-	test('fallback/default color is #858585', () => {
-		expect(html).toContain("#858585");
+	test('HTML contains error-message element', () => {
+		expect(html).toContain('error-message');
 	});
 });
 
@@ -376,20 +344,19 @@ describe('GraphViewProvider — message protocol (full updateView)', () => {
 		expect(msg.data.links[0]).toMatchObject({ source: 'a', target: 'b', type: 'CONTAINS' });
 	});
 
-	test('store error causes empty nodes and links to be posted', async () => {
+	test('store error posts an error command to the webview', async () => {
 		const store = makeStore();
 		store.getAllNodesAndEdges = mock(() => Promise.reject(new Error('db error')));
 		const diffEngine = new DiffEngine();
-		const provider = new GraphViewProvider(store, diffEngine);
+		const provider = new GraphViewProvider(store, diffEngine, undefined as any);
 		const webviewView = makeFakeWebviewView();
 
 		provider.resolveWebviewView(webviewView as any, {} as any, {} as any);
 		await new Promise(r => setTimeout(r, 20));
 
-		const msg = postedMessages.find(m => m.command === 'updateGraph');
-		expect(msg).toBeDefined();
-		expect(msg.data.nodes).toHaveLength(0);
-		expect(msg.data.links).toHaveLength(0);
+		const errMsg = postedMessages.find(m => m.command === 'error');
+		expect(errMsg).toBeDefined();
+		expect(typeof errMsg.text).toBe('string');
 	});
 });
 
@@ -561,6 +528,24 @@ describe('GraphViewProvider — message protocol (incremental update via refresh
 describe('GraphViewProvider — incoming webview messages', () => {
 	beforeEach(() => {
 		postedMessages.length = 0;
+	});
+
+	test("receiving a 'nodeClick' command calls detailsProvider.showNodeDetails", async () => {
+		const store = makeStore([makeFileNode('x')], []);
+		const diffEngine = new DiffEngine();
+		const showNodeDetails = mock(() => {});
+		const detailsProvider = { showNodeDetails };
+		const provider = new GraphViewProvider(store, diffEngine, undefined as any, detailsProvider);
+		const webviewView = makeFakeWebviewView();
+
+		provider.resolveWebviewView(webviewView as any, {} as any, {} as any);
+		await new Promise(r => setTimeout(r, 20));
+
+		(webviewView.webview as any)._simulateMessage({ command: 'nodeClick', node: { id: 'x', name: 'foo', type: 'METHOD' } });
+		await new Promise(r => setTimeout(r, 10));
+
+		expect(showNodeDetails).toHaveBeenCalledTimes(1);
+		expect(showNodeDetails).toHaveBeenCalledWith({ id: 'x', name: 'foo', type: 'METHOD' });
 	});
 
 	test("receiving a 'refresh' command triggers an updateViewIncremental cycle", async () => {

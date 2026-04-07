@@ -43,7 +43,8 @@ export class PdgBuilder {
 
 			// Collect all IDENTIFIER nodes in this method's subtree with the same name
 			const uses: CpgNode[] = [];
-			this.collectIdentifierUses(methodId, def.name, nodeMap, astChildren, def.id, uses);
+			const visited = new Set<string>();
+			this.collectIdentifierUses(methodId, def.name, nodeMap, astChildren, astParent, def.id, uses, visited);
 
 			for (const use of uses) {
 				pdgEdges.push({
@@ -56,22 +57,65 @@ export class PdgBuilder {
 		}
 
 		// --- CDG edges ---
-		// For each CONTROL_STRUCTURE node, find all direct AST children that are
-		// statements/expressions (not the condition itself) and create CDG edges.
+		// For each CONTROL_STRUCTURE node, emit CDG edges to direct statement children
+		// (not the condition), and also to all descendants inside BLOCK children
+		// (stopping at METHOD and nested CONTROL_STRUCTURE boundaries).
+		const BODY_LABELS = new Set<string>([
+			'BLOCK', 'RETURN', 'LOCAL', 'METHOD_PARAMETER_IN',
+			'CALL', 'FIELD_IDENTIFIER', 'JUMP_TARGET'
+		]);
+
 		const controlStructures = nodes.filter(n => n.label === 'CONTROL_STRUCTURE');
 
 		for (const cs of controlStructures) {
 			const children = astChildren.get(cs.id) || [];
 			for (const childId of children) {
 				const child = nodeMap.get(childId);
-				if (!child) { continue; }
-				// Skip IDENTIFIER/LITERAL nodes that are just the condition expression
-				if (child.label === 'IDENTIFIER' || child.label === 'LITERAL') { continue; }
+				if (!child) {
+					console.warn(`[PdgBuilder] CDG: child node ${childId} not found in nodeMap`);
+					continue;
+				}
+				// Only emit CDG to body/statement children, not condition expressions
+				if (!BODY_LABELS.has(child.label)) { continue; }
 				pdgEdges.push({ source: cs.id, target: childId, type: 'CDG' });
+
+				// FIX-1: For BLOCK children, recursively emit CDG to all descendant statements,
+				// stopping at METHOD and nested CONTROL_STRUCTURE boundaries.
+				if (child.label === 'BLOCK') {
+					this.collectBlockDescendants(childId, cs.id, nodeMap, astChildren, pdgEdges);
+				}
 			}
 		}
 
 		return pdgEdges;
+	}
+
+	/**
+	 * Recursively emit CDG edges from `csId` (the controlling CONTROL_STRUCTURE) to all
+	 * descendant statement-level nodes inside a BLOCK, stopping at METHOD and nested
+	 * CONTROL_STRUCTURE boundaries (they will generate their own CDG edges).
+	 */
+	private collectBlockDescendants(
+		blockId: string,
+		csId: string,
+		nodeMap: Map<string, CpgNode>,
+		astChildren: Map<string, string[]>,
+		pdgEdges: CpgEdge[]
+	): void {
+		const children = astChildren.get(blockId) || [];
+		for (const childId of children) {
+			const child = nodeMap.get(childId);
+			if (!child) { continue; }
+			// Stop at function boundaries
+			if (child.label === 'METHOD') { continue; }
+			// Stop at nested control structures (they handle their own CDG)
+			if (child.label === 'CONTROL_STRUCTURE') { continue; }
+			pdgEdges.push({ source: csId, target: childId, type: 'CDG' });
+			// Recurse into nested blocks (e.g., nested BLOCKs that aren't under a CS)
+			if (child.label === 'BLOCK') {
+				this.collectBlockDescendants(childId, csId, nodeMap, astChildren, pdgEdges);
+			}
+		}
 	}
 
 	private findMethodAncestor(
@@ -79,8 +123,11 @@ export class PdgBuilder {
 		astParent: Map<string, string>,
 		nodeMap: Map<string, CpgNode>
 	): string | null {
+		const visited = new Set<string>(); // FIX-3: guard against cycles
 		let current = astParent.get(nodeId);
 		while (current) {
+			if (visited.has(current)) { break; } // FIX-3: cycle detected
+			visited.add(current);
 			const node = nodeMap.get(current);
 			if (node?.label === 'METHOD') { return current; }
 			current = astParent.get(current);
@@ -93,9 +140,14 @@ export class PdgBuilder {
 		name: string,
 		nodeMap: Map<string, CpgNode>,
 		astChildren: Map<string, string[]>,
+		astParent: Map<string, string>,
 		defId: string,
-		result: CpgNode[]
+		result: CpgNode[],
+		visited: Set<string> // FIX-3: guard against cycles
 	): void {
+		if (visited.has(rootId)) { return; } // FIX-3: cycle guard
+		visited.add(rootId);
+
 		const children = astChildren.get(rootId) || [];
 		for (const childId of children) {
 			const child = nodeMap.get(childId);
@@ -103,9 +155,13 @@ export class PdgBuilder {
 			// Don't recurse into nested methods
 			if (child.label === 'METHOD') { continue; }
 			if (child.label === 'IDENTIFIER' && child.name === name && childId !== defId) {
+				// FIX-4: skip re-definition sites (IDENTIFIER whose parent is a LOCAL node)
+				const parentId = astParent.get(childId);
+				const parentNode = parentId ? nodeMap.get(parentId) : undefined;
+				if (parentNode?.label === 'LOCAL') { continue; }
 				result.push(child);
 			}
-			this.collectIdentifierUses(childId, name, nodeMap, astChildren, defId, result);
+			this.collectIdentifierUses(childId, name, nodeMap, astChildren, astParent, defId, result, visited);
 		}
 	}
 }

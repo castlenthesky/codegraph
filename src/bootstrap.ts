@@ -10,6 +10,9 @@ import { registerAllCommands } from './commands';
 import { ParserService } from './graph/cpg/uast/ParserService';
 import { UastBuilder } from './graph/cpg/uast/UastBuilder';
 import { CpgPipeline } from './graph/cpg/CpgPipeline';
+import { ImportResolver } from './graph/cpg/ImportResolver';
+import { CallResolver } from './graph/cpg/CallResolver';
+import { QueryService } from './graph/cpg/uast/QueryService';
 
 export interface ServiceContainer {
 	store: FalkorDBStore;
@@ -30,9 +33,9 @@ export function bootstrap(context: vscode.ExtensionContext): ServiceContainer {
 	const diffEngine = new DiffEngine();
 
 	// Providers
-	const graphProvider = new GraphViewProvider(store, diffEngine, context.extensionUri);
-	const configProvider = new ConfigViewProvider();
 	const detailsProvider = new DetailsViewProvider();
+	const graphProvider = new GraphViewProvider(store, diffEngine, context.extensionUri, detailsProvider);
+	const configProvider = new ConfigViewProvider();
 
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider('falkordb.graph', graphProvider),
@@ -43,7 +46,11 @@ export function bootstrap(context: vscode.ExtensionContext): ServiceContainer {
 	// CPG pipeline
 	const parserService = new ParserService();
 	const uastBuilder = new UastBuilder();
-	const cpgPipeline = new CpgPipeline(parserService, uastBuilder, store, graphProvider);
+	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+	const queryService = new QueryService(parserService, context.extensionPath);
+	const importResolver = new ImportResolver(store, workspaceRoot, queryService, parserService);
+	const callResolver = new CallResolver(store, workspaceRoot);
+	const cpgPipeline = new CpgPipeline(parserService, uastBuilder, store, graphProvider, undefined, undefined, importResolver, workspaceRoot, callResolver, queryService);
 
 	// File system watcher
 	const fileWatcher = new FileWatcher(store, graphProvider, cpgPipeline);
@@ -58,19 +65,22 @@ export function bootstrap(context: vscode.ExtensionContext): ServiceContainer {
 		console.error('[bootstrap] Phase 1 load failed:', err.message)
 	);
 
-	// Phase 2: Ensure workspace root exists, clean legacy nodes, then reconcile
+	// Phase 2: Ensure workspace root exists, clean legacy nodes, then reconcile.
+	// 5 000ms gives Phase 1 time to finish painting and the force simulation time
+	// to settle before any reconciliation refresh can reheat it.
 	setTimeout(async () => {
 		await reconciler.ensureWorkspaceRoot();
+		await reconciler.cleanupOrphanCpgFileNodes();
 		await reconciler.cleanupLegacyNodes();
 		await reconciler.reconcileInBackground();
-	}, 2000);
+	}, 5000);
 
 	// Phase 3: Continuous Keep-Alive Validation
 	reconciler.startPeriodicReconciliation();
 	context.subscriptions.push({ dispose: () => reconciler.dispose() });
 
 	// Commands
-	registerAllCommands(context, { reconciler });
+	registerAllCommands(context, { reconciler, cpgPipeline, store });
 
 	return { store, reconciler, fileWatcher };
 }

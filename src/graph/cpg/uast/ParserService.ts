@@ -1,19 +1,14 @@
 import Parser from 'tree-sitter';
 import { TreeCache } from './TreeCache';
 import type { IParserService, ParseResult } from '../../../types/parsing';
+import { LANGUAGE_CONFIGS } from './LanguageConfig';
 import { detectLanguage } from '../../nodes/nodeFactory';
 import * as path from 'path';
-
-// Grammar module mapping: language string → npm package and optional sub-export
-const GRAMMAR_MAP: Record<string, { module: string; subExport?: string }> = {
-	'typescript': { module: 'tree-sitter-typescript', subExport: 'typescript' },
-	'javascript': { module: 'tree-sitter-typescript', subExport: 'typescript' },
-	'python': { module: 'tree-sitter-python' },
-};
 
 export class ParserService implements IParserService {
 	private cache = new TreeCache();
 	private parsers = new Map<string, Parser>();
+	private languages = new Map<string, unknown>(); // tree-sitter Language objects, needed for Query construction
 
 	async parse(filePath: string, source: string): Promise<ParseResult> {
 		const ext = path.extname(filePath);
@@ -36,6 +31,25 @@ export class ParserService implements IParserService {
 	dispose(): void {
 		this.cache.clear();
 		this.parsers.clear();
+		this.languages.clear();
+	}
+
+	/**
+	 * Returns the raw tree-sitter Language object for the given language string.
+	 * Required by QueryService to compile .scm query files.
+	 * Returns undefined if the language has not been loaded yet.
+	 */
+	getLanguage(language: string): unknown {
+		return this.languages.get(language);
+	}
+
+	/**
+	 * Eagerly load the parser (and cache the Language object) for the given language.
+	 * QueryService calls this to ensure the Language object is available before
+	 * compiling queries.
+	 */
+	async ensureLanguageLoaded(language: string): Promise<void> {
+		await this.getParserForLanguage(language);
 	}
 
 	private async getParserForLanguage(language: string): Promise<Parser> {
@@ -43,19 +57,20 @@ export class ParserService implements IParserService {
 			return this.parsers.get(language)!;
 		}
 
-		const grammarInfo = GRAMMAR_MAP[language];
-		if (!grammarInfo) {
-			throw new Error(`No grammar for language: ${language}`);
+		const config = LANGUAGE_CONFIGS[language];
+		if (!config) {
+			throw new Error(`No grammar config for language: ${language}`);
 		}
 
 		try {
 			// eslint-disable-next-line @typescript-eslint/no-require-imports
-			const mod = require(grammarInfo.module);
-			const grammarLang = grammarInfo.subExport ? mod[grammarInfo.subExport] : mod;
+			const mod = require(config.grammar.module);
+			const grammarLang = config.grammar.subExport ? mod[config.grammar.subExport] : mod;
 
 			const parser = new Parser();
 			parser.setLanguage(grammarLang);
 			this.parsers.set(language, parser);
+			this.languages.set(language, grammarLang);
 			return parser;
 		} catch (err) {
 			throw new Error(`Failed to load grammar for language '${language}': ${err instanceof Error ? err.message : String(err)}`);

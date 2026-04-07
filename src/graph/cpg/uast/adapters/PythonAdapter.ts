@@ -1,32 +1,9 @@
-import type { CpgNodeType } from '../../../../types/cpg';
-
-export const PY_NODE_MAP: Record<string, CpgNodeType> = {
-	'module': 'FILE',
-	'function_definition': 'METHOD',
-	'class_definition': 'TYPE_DECL',
-	'block': 'BLOCK',
-	'if_statement': 'CONTROL_STRUCTURE',
-	'for_statement': 'CONTROL_STRUCTURE',
-	'while_statement': 'CONTROL_STRUCTURE',
-	'try_statement': 'CONTROL_STRUCTURE',
-	'with_statement': 'CONTROL_STRUCTURE',
-	'assignment': 'UNKNOWN',
-	'named_expression': 'LOCAL',
-	'call': 'CALL',
-	'import_from_statement': 'CALL',
-	'import_statement': 'CALL',
-	'identifier': 'IDENTIFIER',
-	'string': 'LITERAL',
-	'integer': 'LITERAL',
-	'float': 'LITERAL',
-	'true': 'LITERAL',
-	'false': 'LITERAL',
-	'none': 'LITERAL',
-	'return_statement': 'RETURN',
-	'comment': 'COMMENT',
-	'decorator': 'ANNOTATION',
-};
-
+/**
+ * Python node property extractor.
+ * The nodeMap has moved to LanguageConfig.ts (PYTHON_CONFIG.nodeMap).
+ * This file retains only the extractNodeProps function which has complex
+ * language-specific logic that doesn't belong in a data config.
+ */
 export function extractNodeProps(
 	tsNode: { type: string; startIndex: number; endIndex: number; startPosition: { row: number; column: number }; childForFieldName(name: string): { startIndex: number; endIndex: number } | null },
 	source: string,
@@ -48,7 +25,31 @@ export function extractNodeProps(
 			const nameNode = tsNode.childForFieldName('name');
 			return { ...base, name: nameNode ? source.slice(nameNode.startIndex, nameNode.endIndex) : undefined };
 		}
-		case 'assignment': {
+		case 'lambda': {
+			// Anonymous — synthesize a positional name for debugging
+			return { ...base, name: `<lambda>:${tsNode.startPosition.row + 1}` };
+		}
+		// Individual parameter node types
+		case 'default_parameter':
+		case 'typed_parameter':
+		case 'typed_default_parameter': {
+			const nameNode = tsNode.childForFieldName('name');
+			return { ...base, name: nameNode ? source.slice(nameNode.startIndex, nameNode.endIndex) : nodeText.substring(0, 64) };
+		}
+		case 'list_splat_pattern': {
+			// *args — strip the leading *
+			return { ...base, name: nodeText.replace(/^\*/, '').substring(0, 64) };
+		}
+		case 'dictionary_splat_pattern': {
+			// **kwargs — strip the leading **
+			return { ...base, name: nodeText.replace(/^\*\*/, '').substring(0, 64) };
+		}
+		case 'attribute': {
+			// obj.attr — emit canonicalName as the full "obj.attr" text
+			return { ...base, canonicalName: nodeText.substring(0, 64) };
+		}
+		case 'assignment':
+		case 'augmented_assignment': {
 			const leftNode = tsNode.childForFieldName('left');
 			return { ...base, name: leftNode ? source.slice(leftNode.startIndex, leftNode.endIndex).substring(0, 64) : undefined };
 		}

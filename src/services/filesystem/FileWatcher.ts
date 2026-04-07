@@ -20,6 +20,9 @@ interface PendingChange {
 	timestamp: number;
 }
 
+// Renames first so IDs are updated before delete/create can reference stale paths
+const typeRank: Record<string, number> = { 'rename': 0, 'delete': 1, 'change': 2, 'create': 3 };
+
 interface DeletedDirectoryInfo {
 	id: string;
 	path: string;
@@ -136,7 +139,6 @@ export class FileWatcher implements IFileWatcher {
 		// Sort: renames first, then deletes, changes, creates; shorter paths first within type [LO-003]
 		const changes = Array.from(this.pendingChanges.values());
 		changes.sort((a, b) => {
-			const typeRank = { 'rename': 0, 'delete': 1, 'change': 2, 'create': 3 };
 			if (typeRank[a.type] !== typeRank[b.type]) {
 				return typeRank[a.type] - typeRank[b.type];
 			}
@@ -397,9 +399,14 @@ export class FileWatcher implements IFileWatcher {
 	private async createParentEdge(childRelativePath: string, childId: string): Promise<void> {
 		const parentRelPath = path.dirname(childRelativePath);
 
-		// If parent is the workspace root (.), skip (no parent node exists)
-		// Watch folder roots (e.g., 'src') ARE valid directories and should exist as nodes
+		// If parent is the workspace root (.), connect child to 'workspace-root'
 		if (parentRelPath === '.' || parentRelPath === '') {
+			const edge: GraphEdge = {
+				source: 'workspace-root',
+				target: childId,
+				type: 'CONTAINS'
+			};
+			await this.store.createEdge(edge);
 			return;
 		}
 
@@ -576,55 +583,7 @@ export class FileWatcher implements IFileWatcher {
 				}
 			}
 		} catch (error) {
-			console.error('Error reconnecting orphaned children:', error);
-			vscode.window.showErrorMessage(`Failed to reconnect orphaned children: ${error}`);
-		}
-	}
-
-	/**
-	 * Find an orphaned node by name that has no parent edge.
-	 * [HI-002] Added isSoftDeleted guard so we only match actual orphans, not watch-root nodes.
-	 * [HI-003] Label validated against allowlist before interpolation (FalkorDB doesn't support parameterized labels).
-	 */
-	private async findOrphanedNode(name: string, isDirectory: boolean): Promise<{ id: string; relativePath: string } | null> {
-		try {
-			const label = isDirectory ? 'DIRECTORY' : 'FILE';
-			if (!FileWatcher.VALID_LABELS.has(label)) {
-				throw new Error(`Invalid label: ${label}`);
-			}
-
-			let query: string;
-			let params: Record<string, unknown>;
-
-			if (!isDirectory) {
-				// [HI-002] Match on name + extension for files to reduce ambiguity
-				const ext = path.extname(name);
-				query = `MATCH (n:${label} {name: $name, extension: $ext})
-						 WHERE NOT ()-[:CONTAINS]->(n)
-						   AND n.isSoftDeleted IS NOT NULL
-						 RETURN n.id as id, n.relativePath as relativePath
-						 LIMIT 1`;
-				params = { name, ext };
-			} else {
-				query = `MATCH (n:${label} {name: $name})
-						 WHERE NOT ()-[:CONTAINS]->(n)
-						   AND n.isSoftDeleted IS NOT NULL
-						 RETURN n.id as id, n.relativePath as relativePath
-						 LIMIT 1`;
-				params = { name };
-			}
-
-			const result = await this.store.query(query, params);
-			if (result.data && result.data.length > 0) {
-				return {
-					id: result.data[0].id,
-					relativePath: result.data[0].relativePath
-				};
-			}
-			return null;
-		} catch (error) {
-			console.error('Error finding orphaned node:', error);
-			return null;
+			console.error('[FileWatcher] Failed to reconnect orphaned children:', error);
 		}
 	}
 

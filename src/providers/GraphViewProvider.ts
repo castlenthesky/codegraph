@@ -3,24 +3,12 @@ import * as crypto from 'crypto';
 import type { IGraphStore } from '../types/storage';
 import type { IGraphViewProvider } from '../types/visualization';
 import { DiffEngine } from '../services/sync/DiffEngine';
-import type { GraphData, IncrementalPatch } from '../services/sync/DiffEngine';
+import type { GraphData } from '../services/sync/DiffEngine';
+import { cpgNodeVal } from '../utils/cpgNodeUtils';
+import { snapshotGraph } from '../utils/graphSnapshot';
 
 function getNonce(): string {
 	return crypto.randomBytes(16).toString('base64');
-}
-
-function cpgNodeVal(label: string): number {
-	switch (label) {
-		case 'METHOD': return 4;
-		case 'TYPE_DECL': return 3;
-		case 'DIRECTORY': return 3;
-		case 'CALL': return 2;
-		case 'CONTROL_STRUCTURE': return 2;
-		case 'IDENTIFIER': return 1.5;
-		case 'LITERAL': return 1.5;
-		case 'BLOCK': return 1;
-		default: return 2;
-	}
 }
 
 /**
@@ -32,30 +20,44 @@ function cpgNodeVal(label: string): number {
 export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphViewProvider {
 	private _view?: vscode.WebviewView;
 	private currentGraphData: GraphData | null = null;
+	private _disposables: vscode.Disposable[] = [];
 
 	constructor(
 		private readonly store: IGraphStore,
 		private readonly diffEngine: DiffEngine,
-		private readonly extensionUri: vscode.Uri
+		private readonly extensionUri: vscode.Uri,
+		private readonly detailsProvider?: { showNodeDetails(node: any): void }
 	) {}
 
-	public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
+	public async resolveWebviewView(webviewView: vscode.WebviewView, _context: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
 		this._view = webviewView;
 		webviewView.webview.options = {
 			enableScripts: true,
-			localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'node_modules')]
+			localResourceRoots: [
+				vscode.Uri.joinPath(this.extensionUri, 'node_modules'),
+				vscode.Uri.joinPath(this.extensionUri, 'media'),
+			]
 		};
 		this._view.webview.html = this.getHtml(webviewView.webview);
 
 		// Send initial data only after the webview signals it is ready.
 		// This prevents postMessage from firing before the JS message listener is registered.
-		webviewView.webview.onDidReceiveMessage(async (message) => {
-			if (message.command === 'ready') {
-				await this.updateView();
-			} else if (message.command === 'refresh') {
-				await this.refresh();
-			}
-		});
+		this._disposables.push(
+			webviewView.webview.onDidReceiveMessage(async (message) => {
+				if (message.command === 'ready') {
+					await this.updateView();
+				} else if (message.command === 'refresh') {
+					await this.refresh();
+				} else if (message.command === 'nodeClick') {
+					this.detailsProvider?.showNodeDetails(message.node);
+				}
+			})
+		);
+	}
+
+	public dispose(): void {
+		this._disposables.forEach(d => d.dispose());
+		this._disposables = [];
 	}
 
 	public async refresh(): Promise<void> {
@@ -74,9 +76,9 @@ export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphView
 
 			const nodes = dbNodes.map(node => ({
 				id: node.id,
-				name: (node as any).name ?? node.id,
+				name: node.name ?? node.id,
 				type: node.label,
-				code: (node as any).code?.substring(0, 40),
+				code: ('code' in node ? node.code : undefined)?.substring(0, 40),
 				val: cpgNodeVal(node.label)
 			}));
 
@@ -86,12 +88,14 @@ export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphView
 				type: edge.type
 			}));
 
+			console.log(`[CodeGraph] Full graph load: ${nodes.length} nodes, ${links.length} links`);
+			console.log('[CodeGraph] Graph snapshot:', JSON.stringify(snapshotGraph(dbNodes, dbEdges)));
 			this._view.webview.postMessage({ command: 'updateGraph', data: { nodes, links } });
 
 		} catch (error: any) {
 			console.error('Error updating graph view:', error);
 			this.currentGraphData = { nodes: [], edges: [] };
-			this._view.webview.postMessage({ command: 'updateGraph', data: { nodes: [], links: [] } });
+			this._view.webview.postMessage({ command: 'error', text: 'Failed to load graph data. Check the Output panel for details.' });
 		}
 	}
 
@@ -113,7 +117,17 @@ export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphView
 			const diff = this.diffEngine.computeDiff(this.currentGraphData, newGraphData);
 
 			if (!this.diffEngine.hasChanges(diff)) {
+				console.log('[CodeGraph] No changes detected, skipping update');
 				return;
+			}
+
+			const { nodesToAdd, nodesToRemove, nodesToUpdate, edgesToAdd, edgesToRemove } = diff;
+			console.log(`[CodeGraph] Incremental update: +${nodesToAdd.length} nodes, -${nodesToRemove.length} nodes, +${edgesToAdd.length} edges, -${edgesToRemove.length} edges`);
+			if (nodesToRemove.length > 0) {
+				console.log(`[CodeGraph] Removing nodes:`, nodesToRemove.slice(0, 10));
+			}
+			if (nodesToAdd.length > 5) {
+				console.log(`[CodeGraph] Adding ${nodesToAdd.length} nodes (first 5):`, nodesToAdd.slice(0, 5).map(n => n.id));
 			}
 
 			this.currentGraphData = newGraphData;
@@ -124,7 +138,12 @@ export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphView
 
 		} catch (error: any) {
 			console.error('Error updating graph view incrementally:', error);
-			await this.updateView();
+			try {
+				await this.updateView();
+			} catch (fallbackError) {
+				console.error('[GraphViewProvider] Fallback full-refresh also failed:', fallbackError);
+				this._view?.webview.postMessage({ command: 'error', message: 'Failed to refresh graph view' });
+			}
 		}
 	}
 
@@ -132,6 +151,9 @@ export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphView
 		const nonce = getNonce();
 		const forceGraphUri = webview.asWebviewUri(
 			vscode.Uri.joinPath(this.extensionUri, 'node_modules', 'force-graph', 'dist', 'force-graph.min.js')
+		);
+		const webviewScriptUri = webview.asWebviewUri(
+			vscode.Uri.joinPath(this.extensionUri, 'media', 'graphWebview.js')
 		);
 		const csp = [
 			`default-src 'none'`,
@@ -149,126 +171,14 @@ export class GraphViewProvider implements vscode.WebviewViewProvider, IGraphView
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: var(--vscode-editor-background); }
         #graph-container { width: 100%; height: 100vh; }
+        #error-message { display: none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-inputValidation-errorForeground); border: 1px solid var(--vscode-inputValidation-errorBorder); padding: 8px 16px; border-radius: 4px; z-index: 10; }
     </style>
     <script nonce="${nonce}" src="${forceGraphUri}"></script>
 </head>
 <body>
     <div id="graph-container"></div>
-    <script nonce="${nonce}">
-        const vscodeApi = acquireVsCodeApi();
-        const elem = document.getElementById('graph-container');
-        const linkColor = getComputedStyle(document.body).getPropertyValue('--vscode-editorLineNumber-foreground') || '#858585';
-
-        function nodeColor(node) {
-            switch (node.type) {
-                case 'METHOD': return '#4FC1FF';
-                case 'TYPE_DECL': return '#4EC9B0';
-                case 'CALL': return '#CE9178';
-                case 'CONTROL_STRUCTURE': return '#C586C0';
-                case 'IDENTIFIER': return '#DCDCAA';
-                case 'LITERAL': return '#B5CEA8';
-                case 'BLOCK': return '#555555';
-                case 'RETURN': return '#C586C0';
-                case 'LOCAL': return '#9CDCFE';
-                case 'DIRECTORY': return '#808080';
-                case 'FILE': return '#FFFFFF';
-                default: return '#858585';
-            }
-        }
-
-        const Graph = ForceGraph()(elem)
-            .width(window.innerWidth)
-            .height(window.innerHeight)
-            .nodeLabel(node => \`\${node.type}: \${node.name || (node.code ? node.code.substring(0, 40) : node.id)}\`)
-            .nodeColor(node => nodeColor(node))
-            .linkColor(link => {
-                switch (link.type) {
-                    case 'AST': return '#444444';
-                    case 'CFG': return '#4FC1FF';
-                    case 'REACHING_DEF': return '#F44747';
-                    case 'CDG': return '#C586C0';
-                    case 'CALL': return '#CE9178';
-                    case 'SOURCE_FILE': return '#333333';
-                    default: return linkColor;
-                }
-            })
-            .linkWidth(link => {
-                switch (link.type) {
-                    case 'CFG': return 2;
-                    case 'REACHING_DEF': return 2;
-                    case 'CDG': return 1.5;
-                    case 'CALL': return 2;
-                    default: return 1;
-                }
-            })
-            .nodeRelSize(4)
-            .d3VelocityDecay(0.1);
-
-        window.addEventListener('resize', () => {
-            Graph.width(window.innerWidth).height(window.innerHeight);
-        });
-
-        // Signal the extension that the webview JS is ready to receive data
-        vscodeApi.postMessage({ command: 'ready' });
-
-        window.addEventListener('message', event => {
-            const message = event.data;
-
-            if (message.command === 'updateGraph') {
-                Graph.graphData(message.data);
-            }
-            else if (message.command === 'incrementalUpdate') {
-                const patch = message.patch;
-                const { nodes, links } = Graph.graphData();
-                let newNodes = [...nodes];
-                let newLinks = [...links];
-
-                if (patch.removeNodes && patch.removeNodes.length > 0) {
-                    const nodeIdsToRemove = new Set(patch.removeNodes);
-                    newNodes = newNodes.filter(n => !nodeIdsToRemove.has(n.id));
-                }
-
-                if (patch.removeLinks && patch.removeLinks.length > 0) {
-                    const linksToRemove = new Set(
-                        patch.removeLinks.map(l => \`\${l.source}|\${l.target}\`)
-                    );
-                    newLinks = newLinks.filter(l => {
-                        const key = \`\${l.source.id || l.source}|\${l.target.id || l.target}\`;
-                        return !linksToRemove.has(key);
-                    });
-                }
-
-                if (patch.addNodes && patch.addNodes.length > 0) {
-                    newNodes = [...newNodes, ...patch.addNodes];
-                }
-
-                if (patch.addLinks && patch.addLinks.length > 0) {
-                    newLinks = [...newLinks, ...patch.addLinks];
-                }
-
-                if (patch.updateLinks && patch.updateLinks.length > 0) {
-                    const updateMap = new Map(
-                        patch.updateLinks.map(l => [\`\${l.source}|\${l.target}\`, l])
-                    );
-                    newLinks = newLinks.map(link => {
-                        const key = \`\${link.source.id || link.source}|\${link.target.id || link.target}\`;
-                        const update = updateMap.get(key);
-                        return update ? { ...link, ...update } : link;
-                    });
-                }
-
-                if (patch.updateNodes && patch.updateNodes.length > 0) {
-                    const updateMap = new Map(patch.updateNodes.map(n => [n.id, n]));
-                    newNodes = newNodes.map(node => {
-                        const update = updateMap.get(node.id);
-                        return update ? { ...node, ...update } : node;
-                    });
-                }
-
-                Graph.graphData({ nodes: newNodes, links: newLinks });
-            }
-        });
-    </script>
+    <div id="error-message"></div>
+    <script nonce="${nonce}" src="${webviewScriptUri}"></script>
 </body>
 </html>`;
 	}

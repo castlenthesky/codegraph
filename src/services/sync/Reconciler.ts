@@ -4,7 +4,7 @@ import * as path from 'path';
 import type { IGraphStore } from '../../types/storage';
 import type { IGraphViewProvider } from '../../types/visualization';
 import type { IReconciler } from '../../types/sync';
-import { detectLanguage, generateId } from '../../graph/nodes/nodeFactory';
+import { generateId, createDirectoryNode, createFileNode } from '../../graph/nodes/nodeFactory';
 
 /**
  * Orchestrates synchronization between the FalkorDB graph and the workspace file system.
@@ -58,7 +58,7 @@ export class Reconciler implements IReconciler {
 		const watchFolders = watchFoldersStr.split(',').map(f => f.trim()).filter(f => f.length > 0);
 
 		for (const folder of watchFolders) {
-			const watchFolderId = folder.replace(/\\/g, '/');
+			const watchFolderId = generateId(folder);
 
 			const folderResult = await this.store.query(
 				`MATCH (n) WHERE n.id = $id RETURN n LIMIT 1`,
@@ -72,6 +72,25 @@ export class Reconciler implements IReconciler {
 					type: 'CONTAINS'
 				});
 			}
+		}
+	}
+
+	/**
+	 * Remove orphan CPG FILE nodes that were created before the unification fix.
+	 * These have a `filename` property and an id matching the pattern `*:FILE:\d+:\d+`.
+	 */
+	public async cleanupOrphanCpgFileNodes(): Promise<void> {
+		await this.store.connect();
+
+		const result = await this.store.query(
+			`MATCH (n:FILE) WHERE n.filename IS NOT NULL AND n.id =~ '.*:FILE:\\\\d+:\\\\d+$' RETURN count(n) as count`
+		);
+		const count = result.data?.[0]?.count || 0;
+		if (count > 0) {
+			await this.store.query(
+				`MATCH (n:FILE) WHERE n.filename IS NOT NULL AND n.id =~ '.*:FILE:\\\\d+:\\\\d+$' DETACH DELETE n`
+			);
+			console.log(`[Reconciler] Removed ${count} orphan CPG FILE nodes`);
 		}
 	}
 
@@ -96,14 +115,6 @@ export class Reconciler implements IReconciler {
 			console.log(`Removed ${demoCount} DemoNode nodes`);
 		}
 
-		const otherResult = await this.store.query(
-			`MATCH (n) WHERE NOT (n:FILE OR n:DIRECTORY) RETURN count(n) as count`
-		);
-		const otherCount = otherResult.data?.[0]?.count || 0;
-		if (otherCount > 0) {
-			await this.store.query(`MATCH (n) WHERE NOT (n:FILE OR n:DIRECTORY) DETACH DELETE n`);
-			console.log(`Removed ${otherCount} other legacy nodes`);
-		}
 	}
 
 	/**
@@ -138,9 +149,13 @@ export class Reconciler implements IReconciler {
 			cancellable: false
 		}, async (progress) => {
 			try {
-				await this.smartReconciliation(progress);
+				const hadChanges = await this.smartReconciliation(progress);
 
-				await this.graphView.refresh();
+				// Only refresh the view if the reconciler actually changed something.
+				// Unconditional refresh reheats the force simulation and causes fragmentation.
+				if (hadChanges) {
+					await this.graphView.refresh();
+				}
 
 			} catch (error: any) {
 				console.error('Reconciliation failed:', error);
@@ -166,9 +181,11 @@ export class Reconciler implements IReconciler {
 		}, 60 * 1000);
 	}
 
-	private async smartReconciliation(progress: vscode.Progress<{ message?: string }>): Promise<void> {
+	private async smartReconciliation(progress: vscode.Progress<{ message?: string }>): Promise<boolean> {
+		console.log(`[Reconciler] Starting reconciliation. Checking orphans...`);
 		progress.report({ message: 'Checking for deleted files...' });
 		const orphans = await this.findOrphanNodes();
+		console.log(`[Reconciler] Found ${orphans.length} orphan nodes:`, orphans.slice(0, 5));
 		if (orphans.length > 0) {
 			progress.report({ message: `Cleaning up ${orphans.length} deleted files...` });
 			await this.cleanupOrphans(orphans);
@@ -176,6 +193,7 @@ export class Reconciler implements IReconciler {
 
 		progress.report({ message: 'Checking for new files...' });
 		const missingFiles = await this.findMissingFiles();
+		console.log(`[Reconciler] Found ${missingFiles.length} missing files:`, missingFiles.slice(0, 5));
 		if (missingFiles.length > 0) {
 			progress.report({ message: `Indexing ${missingFiles.length} new files...` });
 			await this.indexMissingFiles(missingFiles);
@@ -186,41 +204,33 @@ export class Reconciler implements IReconciler {
 
 		this.lastReconciliation = Date.now();
 
-		if (orphans.length > 0 || missingFiles.length > 0) {
+		console.log(`[Reconciler] Reconciliation complete. Orphans cleaned: ${orphans.length}, Files indexed: ${missingFiles.length}`);
+
+		const hadChanges = orphans.length > 0 || missingFiles.length > 0;
+		if (hadChanges) {
 			vscode.window.showInformationMessage(
 				`Code graph updated: ${orphans.length} deleted, ${missingFiles.length} added`
 			);
 		}
+
+		return hadChanges;
 	}
 
 	private async findOrphanNodes(): Promise<string[]> {
 		const orphans: string[] = [];
 
-		const result = await this.store.query('MATCH (n) WHERE n:FILE OR n:DIRECTORY RETURN n.id as id, n.path as path');
+		// Only query filesystem nodes (those with path set).
+		// CPG FILE nodes use `filename` instead of `path` and must not be treated as orphans.
+		const result = await this.store.query(
+			'MATCH (n) WHERE (n:FILE OR n:DIRECTORY) AND n.path IS NOT NULL RETURN n.id as id, n.path as path'
+		);
+		console.log(`[Reconciler] Orphan check: ${result.data?.length || 0} filesystem nodes in DB`);
+		const nullPathNodes = (result.data || []).filter((row: any) => !row.path);
+		if (nullPathNodes.length > 0) {
+			console.warn(`[Reconciler] WARNING: ${nullPathNodes.length} FILE/DIRECTORY nodes have no path property (CPG nodes leaking into filesystem query)`);
+		}
 		for (const row of result.data || []) {
-			if (!fs.existsSync(row.path)) {
-				orphans.push(row.id);
-			}
-		}
-
-		const isolatedResult = await this.store.query(
-			`MATCH (n)
-			 WHERE (n:FILE OR n:DIRECTORY) AND NOT (n)--()
-			 RETURN n.id as id`
-		);
-		for (const row of isolatedResult.data || []) {
-			if (!orphans.includes(row.id)) {
-				orphans.push(row.id);
-			}
-		}
-
-		const legacyResult = await this.store.query(
-			`MATCH (n)
-			 WHERE NOT (n:FILE OR n:DIRECTORY)
-			 RETURN n.id as id`
-		);
-		for (const row of legacyResult.data || []) {
-			if (!orphans.includes(row.id)) {
+			if (row.path && !fs.existsSync(row.path)) {
 				orphans.push(row.id);
 			}
 		}
@@ -230,7 +240,10 @@ export class Reconciler implements IReconciler {
 
 	private async findMissingFiles(): Promise<string[]> {
 		const missingFiles: string[] = [];
-		const dbResult = await this.store.query('MATCH (n) WHERE n:FILE OR n:DIRECTORY RETURN n.path as path');
+		// Only collect paths from filesystem nodes to avoid null/undefined polluting dbPaths.
+		const dbResult = await this.store.query(
+			'MATCH (n) WHERE (n:FILE OR n:DIRECTORY) AND n.path IS NOT NULL RETURN n.path as path'
+		);
 		const dbPaths = new Set(dbResult.data?.map((row: any) => row.path) || []);
 
 		const config = vscode.workspace.getConfiguration('falkordb');
@@ -253,7 +266,11 @@ export class Reconciler implements IReconciler {
 
 	private async cleanupOrphans(nodeIds: string[]): Promise<void> {
 		for (const nodeId of nodeIds) {
-			await this.store.deleteNode(nodeId);
+			try {
+				await this.store.deleteNode(nodeId);
+			} catch (e) {
+				console.warn(`[Reconciler] Failed to delete orphan node ${nodeId}:`, e);
+			}
 		}
 	}
 
@@ -261,22 +278,15 @@ export class Reconciler implements IReconciler {
 		for (const fullPath of filePaths) {
 			const relativePath = path.relative(this.workspaceRoot, fullPath);
 			const stats = fs.statSync(fullPath);
-			const nodeId = generateId(relativePath);
 
 			if (stats.isDirectory()) {
-				await this.store.createNode({
-					id: nodeId, label: 'DIRECTORY', name: path.basename(fullPath),
-					path: fullPath, relativePath, createdAt: stats.birthtimeMs, modifiedAt: stats.mtimeMs
-				});
-				await this.createParentEdge(relativePath, nodeId);
+				const node = await createDirectoryNode(fullPath, relativePath, stats);
+				await this.store.createNode(node);
+				await this.createParentEdge(relativePath, node.id);
 			} else if (stats.isFile()) {
-				await this.store.createNode({
-					id: nodeId, label: 'FILE', name: path.basename(fullPath),
-					path: fullPath, relativePath, extension: path.extname(fullPath),
-					language: detectLanguage(path.extname(fullPath)), size: stats.size,
-					createdAt: stats.birthtimeMs, modifiedAt: stats.mtimeMs, isParsed: false
-				});
-				await this.createParentEdge(relativePath, nodeId);
+				const node = await createFileNode(fullPath, relativePath, stats);
+				await this.store.createNode(node);
+				await this.createParentEdge(relativePath, node.id);
 			}
 		}
 	}
@@ -293,7 +303,7 @@ export class Reconciler implements IReconciler {
 			return;
 		}
 
-		const parentId = parentRelPath.replace(/\\/g, '/');
+		const parentId = generateId(parentRelPath);
 
 		const parentExists = await this.store.query(
 			`MATCH (n) WHERE n.id = $id RETURN n LIMIT 1`,
@@ -329,16 +339,20 @@ export class Reconciler implements IReconciler {
 
 	private async verifyFileMetadata(): Promise<void> {
 		const result = await this.store.query(
-			'MATCH (f:FILE) RETURN f.id as id, f.path as path, f.size as size, f.modifiedAt as modifiedAt'
+			'MATCH (f:FILE) WHERE f.path IS NOT NULL RETURN f.id as id, f.path as path, f.size as size, f.modifiedAt as modifiedAt'
 		);
 		for (const row of result.data || []) {
-			if (!fs.existsSync(row.path)) { continue; }
-			const stats = fs.statSync(row.path);
-			if (stats.size !== row.size || stats.mtimeMs !== row.modifiedAt) {
-				await this.store.updateNode(row.id, {
-					size: stats.size,
-					modifiedAt: stats.mtimeMs
-				});
+			if (!row.path || !fs.existsSync(row.path)) { continue; }
+			try {
+				const stats = fs.statSync(row.path);
+				if (stats.size !== row.size || stats.mtimeMs !== row.modifiedAt) {
+					await this.store.updateNode(row.id, {
+						size: stats.size,
+						modifiedAt: stats.mtimeMs
+					});
+				}
+			} catch {
+				continue;
 			}
 		}
 	}

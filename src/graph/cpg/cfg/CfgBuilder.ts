@@ -15,11 +15,13 @@ type CfgExits = string[];
 export class CfgBuilder {
 	/**
 	 * Build CFG edges from UAST nodes + AST edges.
-	 * Returns additional CpgEdge[] with type='CFG'.
-	 * Also appends synthetic METHOD_RETURN nodes to uastResult.nodes.
+	 * Returns cfgEdges, plus synthetic newNodes and newEdges that should be
+	 * merged into the graph by the caller (does NOT mutate uastResult).
 	 */
-	build(uastResult: UastBuildResult): CpgEdge[] {
+	build(uastResult: UastBuildResult): { cfgEdges: CpgEdge[]; newNodes: CpgNode[]; newEdges: CpgEdge[] } {
 		const cfgEdges: CpgEdge[] = [];
+		const newNodes: CpgNode[] = [];
+		const newEdges: CpgEdge[] = [];
 		const { nodes, edges } = uastResult;
 
 		// Build lookup structures
@@ -46,10 +48,10 @@ export class CfgBuilder {
 		const methodNodes = nodes.filter(n => n.label === 'METHOD');
 
 		for (const method of methodNodes) {
-			this.buildMethodCfg(method, nodeMap, astChildren, cfgEdges, uastResult);
+			this.buildMethodCfg(method, nodeMap, astChildren, cfgEdges, newNodes, newEdges);
 		}
 
-		return cfgEdges;
+		return { cfgEdges, newNodes, newEdges };
 	}
 
 	private buildMethodCfg(
@@ -57,7 +59,8 @@ export class CfgBuilder {
 		nodeMap: Map<string, CpgNode>,
 		astChildren: Map<string, string[]>,
 		cfgEdges: CpgEdge[],
-		uastResult: UastBuildResult
+		newNodes: CpgNode[],
+		newEdges: CpgEdge[]
 	): void {
 		// Synthesize a METHOD_RETURN node for this method
 		const methodReturnId = `${method.id}:METHOD_RETURN`;
@@ -69,10 +72,10 @@ export class CfgBuilder {
 			lineNumber: method.lineNumber,
 			order: 9999,
 		};
-		uastResult.nodes.push(methodReturnNode);
+		newNodes.push(methodReturnNode);
 		nodeMap.set(methodReturnId, methodReturnNode);
 		// AST edge from METHOD to METHOD_RETURN
-		uastResult.edges.push({ source: method.id, target: methodReturnId, type: 'AST' });
+		newEdges.push({ source: method.id, target: methodReturnId, type: 'AST' });
 
 		// Get method body children (the direct AST children of the method)
 		const bodyChildren = astChildren.get(method.id) || [];
@@ -120,7 +123,10 @@ export class CfgBuilder {
 		methodReturnId: string
 	): CfgExits {
 		const node = nodeMap.get(nodeId);
-		if (!node) { return entries; }
+		if (!node) {
+			console.warn(`[CfgBuilder] Node not found in map: ${nodeId}`);
+			return entries;
+		}
 
 		// Skip nested methods — they have their own CFG
 		if (node.label === 'METHOD') { return entries; }
@@ -176,8 +182,10 @@ export class CfgBuilder {
 		for (const entryId of entries) {
 			cfgEdges.push({ source: entryId, target: node.id, type: 'CFG' });
 		}
-		// RETURN always flows to METHOD_RETURN — it's a terminal
-		cfgEdges.push({ source: node.id, target: methodReturnId, type: 'CFG' });
+		// RETURN flows to METHOD_RETURN only if it is reachable
+		if (entries.length > 0) {
+			cfgEdges.push({ source: node.id, target: methodReturnId, type: 'CFG' });
+		}
 		// No exits — code after return is unreachable
 		return [];
 	}
@@ -210,7 +218,7 @@ export class CfgBuilder {
 		entries: CfgExits,
 		methodReturnId: string
 	): CfgExits {
-		const code = node.code ?? '';
+		const structureType = node.controlStructureType ?? (node.code ?? '');
 		const children = astChildren.get(node.id) || [];
 
 		// Connect entries to the CONTROL_STRUCTURE node itself
@@ -218,18 +226,19 @@ export class CfgBuilder {
 			cfgEdges.push({ source: entryId, target: node.id, type: 'CFG' });
 		}
 
-		if (code.startsWith('if')) {
+		if (structureType.startsWith('if') || structureType === 'IF') {
 			return this.processIf(node, children, nodeMap, astChildren, cfgEdges, methodReturnId);
-		} else if (code.startsWith('while') || code.startsWith('for')) {
+		} else if (structureType.startsWith('while') || structureType.startsWith('for') || structureType === 'WHILE' || structureType === 'FOR') {
 			return this.processLoop(node, children, nodeMap, astChildren, cfgEdges, methodReturnId);
-		} else if (code.startsWith('do')) {
+		} else if (structureType.startsWith('do') || structureType === 'DO') {
 			return this.processDoWhile(node, children, nodeMap, astChildren, cfgEdges, methodReturnId);
-		} else if (code.startsWith('switch')) {
+		} else if (structureType.startsWith('switch') || structureType === 'SWITCH') {
 			return this.processSwitch(node, children, nodeMap, astChildren, cfgEdges, methodReturnId);
-		} else if (code.startsWith('try')) {
+		} else if (structureType.startsWith('try') || structureType === 'TRY') {
 			return this.processTry(node, children, nodeMap, astChildren, cfgEdges, methodReturnId);
 		}
 
+		console.warn(`[CfgBuilder] Unrecognized control structure type: '${structureType}', falling through to sequential`);
 		// Fallback: treat as sequential through children
 		let currentExits: CfgExits = [node.id];
 		for (const childId of children) {
@@ -404,7 +413,11 @@ export class CfgBuilder {
 				childId, nodeMap, astChildren, cfgEdges, [node.id], methodReturnId
 			);
 			allExits.push(...branchExits);
-			if (child.code?.startsWith('default')) {
+			if (
+				child.code?.startsWith('default') ||
+				child.code?.includes('default') ||
+				child.controlStructureType === 'DEFAULT'
+			) {
 				hasDefault = true;
 			}
 		}

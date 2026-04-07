@@ -83,6 +83,8 @@ function makeParseResult(
 // ---------------------------------------------------------------------------
 
 const FILE_PATH = '/project/src/example.ts';
+// Simulates the filesystem FILE node ID (as if workspaceRoot = '/project')
+const FS_FILE_NODE_ID = 'src/example.ts';
 
 /**
  * Synthetic tree for: function greet(name: string): string { return "Hello " + name; }
@@ -210,7 +212,7 @@ describe('UastBuilder', () => {
 	describe('smoke tests', () => {
 		test('build returns an object with nodes, edges, removedNodeIds', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			expect(Array.isArray(result.nodes)).toBe(true);
 			expect(Array.isArray(result.edges)).toBe(true);
 			expect(Array.isArray(result.removedNodeIds)).toBe(true);
@@ -218,13 +220,13 @@ describe('UastBuilder', () => {
 
 		test('minimal valid parse result produces non-empty nodes array', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			expect(result.nodes.length).toBeGreaterThan(0);
 		});
 
 		test('every returned node has id, label, and at least one location property', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			for (const node of result.nodes) {
 				expect(typeof node.id).toBe('string');
 				expect(node.id.length).toBeGreaterThan(0);
@@ -244,23 +246,23 @@ describe('UastBuilder', () => {
 	// -------------------------------------------------------------------------
 
 	describe('node creation', () => {
-		test('program node produces a FILE node', () => {
+		test('program node is unified with filesystem FILE node (no CPG FILE emitted)', () => {
 			const source = `function greet(name) {}`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const fileNodes = findNodesByLabel(result.nodes, 'FILE');
-			expect(fileNodes.length).toBe(1);
+			expect(fileNodes.length).toBe(0);
 		});
 
 		test('function_declaration produces a METHOD node', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			expect(methods.length).toBeGreaterThan(0);
 		});
 
 		test('METHOD node has name extracted from identifier child with field "name"', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			// identifier child at startIndex 9..14 = "greet"
 			const greet = methods.find(n => n.name === 'greet');
@@ -269,14 +271,14 @@ describe('UastBuilder', () => {
 
 		test('class_declaration produces a TYPE_DECL node', () => {
 			const source = `class Calculator { add(a, b) { return a + b; } }`;
-			const result = builder.build(makeParseResult(makeClassWithMethod(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeClassWithMethod(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const typeDecls = findNodesByLabel(result.nodes, 'TYPE_DECL');
 			expect(typeDecls.length).toBeGreaterThan(0);
 		});
 
 		test('TYPE_DECL has name "Calculator"', () => {
 			const source = `class Calculator { add(a, b) { return a + b; } }`;
-			const result = builder.build(makeParseResult(makeClassWithMethod(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeClassWithMethod(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const typeDecls = findNodesByLabel(result.nodes, 'TYPE_DECL');
 			const calc = typeDecls.find(n => n.name === 'Calculator');
 			expect(calc).toBeDefined();
@@ -284,35 +286,35 @@ describe('UastBuilder', () => {
 
 		test('method_definition inside class produces a second METHOD node', () => {
 			const source = `class Calculator { add(a, b) { return a + b; } }`;
-			const result = builder.build(makeParseResult(makeClassWithMethod(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeClassWithMethod(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			expect(methods.length).toBeGreaterThanOrEqual(1);
 		});
 
 		test('variable_declarator produces a LOCAL node', () => {
 			const source = `const greeting = "Hello World";`;
-			const result = builder.build(makeParseResult(makeVariableDecl(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeVariableDecl(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const locals = findNodesByLabel(result.nodes, 'LOCAL');
 			expect(locals.length).toBeGreaterThan(0);
 		});
 
 		test('import_statement produces a CALL node (TypeScriptAdapter mapping)', () => {
 			const source = `import { something } from './somewhere';`;
-			const result = builder.build(makeParseResult(makeImportStatement(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeImportStatement(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const calls = findNodesByLabel(result.nodes, 'CALL');
 			expect(calls.length).toBeGreaterThan(0);
 		});
 
 		test('call_expression produces a CALL node', () => {
 			const source = `console.log("hello");`;
-			const result = builder.build(makeParseResult(makeCallExpression(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeCallExpression(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const calls = findNodesByLabel(result.nodes, 'CALL');
 			expect(calls.length).toBeGreaterThan(0);
 		});
 
 		test('call_expression CALL node name comes from function field child', () => {
 			const source = `console.log("hello");`;
-			const result = builder.build(makeParseResult(makeCallExpression(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeCallExpression(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const calls = findNodesByLabel(result.nodes, 'CALL');
 			// member_expression child with field "function" spans "console.log" (0..11)
 			const consoleLog = calls.find(n => n.name === 'console.log');
@@ -321,7 +323,7 @@ describe('UastBuilder', () => {
 
 		test('if_statement produces a CONTROL_STRUCTURE node', () => {
 			const source = `if (x > 0) { doSomething(); }`;
-			const result = builder.build(makeParseResult(makeIfStatement(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeIfStatement(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const ctrlStructures = findNodesByLabel(result.nodes, 'CONTROL_STRUCTURE');
 			expect(ctrlStructures.length).toBeGreaterThan(0);
 		});
@@ -332,29 +334,29 @@ describe('UastBuilder', () => {
 	// -------------------------------------------------------------------------
 
 	describe('edge creation', () => {
-		test('FILE node id encodes filePath, type, row, and column', () => {
+		test('SOURCE_FILE edges target the filesystem FILE node ID', () => {
 			const source = `function greet(name) {}`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
-			const fileNodes = findNodesByLabel(result.nodes, 'FILE');
-			// program node is always at row 0, col 0
-			expect(fileNodes[0].id).toBe(FILE_NODE_ID);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
+			const sfEdges = findEdgesByType(result.edges, 'SOURCE_FILE');
+			for (const edge of sfEdges) {
+				expect(edge.target).toBe(FS_FILE_NODE_ID);
+			}
 		});
 
-		test('SOURCE_FILE edges connect all non-FILE nodes to the FILE node', () => {
+		test('SOURCE_FILE edges connect all nodes to the filesystem FILE node', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const sfEdges = findEdgesByType(result.edges, 'SOURCE_FILE');
-			const nonFileNodes = result.nodes.filter(n => n.label !== 'FILE');
-			for (const node of nonFileNodes) {
+			for (const node of result.nodes) {
 				const edge = sfEdges.find(e => e.source === node.id);
 				expect(edge).toBeDefined();
-				expect(edge!.target).toBe(FILE_NODE_ID);
+				expect(edge!.target).toBe(FS_FILE_NODE_ID);
 			}
 		});
 
 		test('FILE node itself has no SOURCE_FILE edge', () => {
 			const source = `function greet(name) {}`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const selfEdge = result.edges.find(
 				e => e.source === FILE_ID && e.type === 'SOURCE_FILE'
 			);
@@ -363,29 +365,31 @@ describe('UastBuilder', () => {
 
 		test('AST parent-child edges are created', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const astEdges = findEdgesByType(result.edges, 'AST');
 			expect(astEdges.length).toBeGreaterThan(0);
 		});
 
-		test('FILE → METHOD AST edge exists for a top-level function', () => {
+		test('top-level function has no AST parent edge (FILE node is external)', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			const astEdges = findEdgesByType(result.edges, 'AST');
-			// FILE node id is FILE_NODE_ID (position-based), not the fileId anchor
-			const fileToMethod = astEdges.find(
-				e => e.source === FILE_NODE_ID && e.target === methods[0]?.id
-			);
-			expect(fileToMethod).toBeDefined();
+			// Since FILE node is the filesystem node (not emitted), top-level children have no AST parent
+			const fileToMethod = astEdges.find(e => e.target === methods[0]?.id);
+			expect(fileToMethod).toBeUndefined();
 		});
 
-		test('all edge source IDs exist in result.nodes', () => {
+		test('all edge source IDs exist in result.nodes (SOURCE_FILE targets external filesystem node)', () => {
 			const { source, rootNode } = makeTwoFunctions();
-			const result = builder.build(makeParseResult(rootNode), FILE_PATH);
+			const result = builder.build(makeParseResult(rootNode), FILE_PATH, FS_FILE_NODE_ID);
 			const nodeIds = new Set(result.nodes.map(n => n.id));
 			for (const edge of result.edges) {
 				expect(nodeIds.has(edge.source)).toBe(true);
+				// SOURCE_FILE edge targets point to the filesystem FILE node (not in result.nodes)
+				if (edge.type !== 'SOURCE_FILE') {
+					expect(nodeIds.has(edge.target)).toBe(true);
+				}
 			}
 		});
 
@@ -393,7 +397,7 @@ describe('UastBuilder', () => {
 			// SOURCE_FILE edges use a stable "file:<path>" anchor that differs from
 			// the FILE node's position-based id — only check AST edges here.
 			const { rootNode } = makeTwoFunctions();
-			const result = builder.build(makeParseResult(rootNode), FILE_PATH);
+			const result = builder.build(makeParseResult(rootNode), FILE_PATH, FS_FILE_NODE_ID);
 			const nodeIds = new Set(result.nodes.map(n => n.id));
 			const astEdges = findEdgesByType(result.edges, 'AST');
 			for (const edge of astEdges) {
@@ -404,7 +408,7 @@ describe('UastBuilder', () => {
 
 		test('no duplicate edges (same source + target + type)', () => {
 			const { source, rootNode } = makeTwoFunctions();
-			const result = builder.build(makeParseResult(rootNode), FILE_PATH);
+			const result = builder.build(makeParseResult(rootNode), FILE_PATH, FS_FILE_NODE_ID);
 			const seen = new Set<string>();
 			for (const edge of result.edges) {
 				const key = `${edge.source}|${edge.target}|${edge.type}`;
@@ -415,7 +419,7 @@ describe('UastBuilder', () => {
 
 		test('sibling top-level functions have distinct order values', () => {
 			const { rootNode } = makeTwoFunctions();
-			const result = builder.build(makeParseResult(rootNode), FILE_PATH);
+			const result = builder.build(makeParseResult(rootNode), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			expect(methods.length).toBe(2);
 			const orders = methods.map(m => m.order!).sort((a, b) => a - b);
@@ -424,7 +428,7 @@ describe('UastBuilder', () => {
 
 		test('first sibling has order 0', () => {
 			const { rootNode } = makeTwoFunctions();
-			const result = builder.build(makeParseResult(rootNode), FILE_PATH);
+			const result = builder.build(makeParseResult(rootNode), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			const minOrder = Math.min(...methods.map(m => m.order!));
 			expect(minOrder).toBe(0);
@@ -439,9 +443,9 @@ describe('UastBuilder', () => {
 		test('building same tree twice produces identical IDs', () => {
 			const source = `function greet(name) { return "Hello"; }`;
 			const root = makeSimpleFunction(source);
-			const r1 = builder.build(makeParseResult(root), FILE_PATH);
+			const r1 = builder.build(makeParseResult(root), FILE_PATH, FS_FILE_NODE_ID);
 			const b2 = new UastBuilder();
-			const r2 = b2.build(makeParseResult(root), FILE_PATH);
+			const r2 = b2.build(makeParseResult(root), FILE_PATH, FS_FILE_NODE_ID);
 			const ids1 = new Set(r1.nodes.map(n => n.id));
 			const ids2 = new Set(r2.nodes.map(n => n.id));
 			expect(ids1.size).toBe(ids2.size);
@@ -450,7 +454,7 @@ describe('UastBuilder', () => {
 
 		test('two different function declarations get different IDs', () => {
 			const { rootNode } = makeTwoFunctions();
-			const result = builder.build(makeParseResult(rootNode), FILE_PATH);
+			const result = builder.build(makeParseResult(rootNode), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			expect(methods.length).toBe(2);
 			expect(methods[0].id).not.toBe(methods[1].id);
@@ -459,9 +463,9 @@ describe('UastBuilder', () => {
 		test('same source in different file paths produces different node IDs', () => {
 			const source = `function greet(name) {}`;
 			const root = makeSimpleFunction(source);
-			const r1 = builder.build(makeParseResult(root), '/project/a.ts');
+			const r1 = builder.build(makeParseResult(root), '/project/a.ts', 'a.ts');
 			const b2 = new UastBuilder();
-			const r2 = b2.build(makeParseResult(root), '/project/b.ts');
+			const r2 = b2.build(makeParseResult(root), '/project/b.ts', 'b.ts');
 			const methodIds1 = findNodesByLabel(r1.nodes, 'METHOD').map(n => n.id);
 			const methodIds2 = findNodesByLabel(r2.nodes, 'METHOD').map(n => n.id);
 			for (const id of methodIds1) {
@@ -471,7 +475,7 @@ describe('UastBuilder', () => {
 
 		test('node ID encodes type, row, and column (format: filePath:type:row:col)', () => {
 			const source = `function greet(name) {}`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			// function_declaration starts at row 0, column 0
 			expect(methods[0].id).toBe(`${FILE_PATH}:METHOD:0:0`);
@@ -479,7 +483,7 @@ describe('UastBuilder', () => {
 
 		test('removedNodeIds is always an empty array', () => {
 			const source = `function greet(name) {}`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			expect(result.removedNodeIds).toEqual([]);
 		});
 	});
@@ -489,28 +493,27 @@ describe('UastBuilder', () => {
 	// -------------------------------------------------------------------------
 
 	describe('edge cases', () => {
-		test('comment-only source: COMMENT node and FILE node produced', () => {
+		test('comment-only source: COMMENT node produced, no CPG FILE node', () => {
 			const source = `// This is just a comment`;
-			const result = builder.build(makeParseResult(makeCommentOnly(source)), FILE_PATH);
-			// 'comment' maps to COMMENT in TS_NODE_MAP; program maps to FILE
+			const result = builder.build(makeParseResult(makeCommentOnly(source)), FILE_PATH, FS_FILE_NODE_ID);
+			// 'comment' maps to COMMENT in TS_NODE_MAP; program/FILE is unified with filesystem node
 			const fileNodes = findNodesByLabel(result.nodes, 'FILE');
-			expect(fileNodes.length).toBe(1);
+			expect(fileNodes.length).toBe(0);
+			const commentNodes = findNodesByLabel(result.nodes, 'COMMENT');
+			expect(commentNodes.length).toBe(1);
 		});
 
-		test('empty source: only FILE node, no edges', () => {
+		test('empty source: no nodes emitted, no edges', () => {
 			const source = ``;
-			const result = builder.build(makeParseResult(makeEmpty(source)), FILE_PATH);
-			const fileNodes = findNodesByLabel(result.nodes, 'FILE');
-			expect(fileNodes.length).toBe(1);
-			const nonFileNodes = result.nodes.filter(n => n.label !== 'FILE');
-			expect(nonFileNodes.length).toBe(0);
+			const result = builder.build(makeParseResult(makeEmpty(source)), FILE_PATH, FS_FILE_NODE_ID);
+			expect(result.nodes.length).toBe(0);
 			expect(result.edges.length).toBe(0);
 		});
 
 		test('deeply nested AST (20 if levels) processes without stack overflow', () => {
 			const source = `function deeplyNested() { ${'if(x) {'.repeat(20)} return true; ${' }'.repeat(20)} }`;
 			const root = makeDeeplyNested(source, 20);
-			const result = builder.build(makeParseResult(root), FILE_PATH);
+			const result = builder.build(makeParseResult(root), FILE_PATH, FS_FILE_NODE_ID);
 			expect(result.nodes.length).toBeGreaterThan(0);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			expect(methods.length).toBeGreaterThan(0);
@@ -528,7 +531,7 @@ describe('UastBuilder', () => {
 			}
 			const root = fakeNode('program', source, 0, source.length, 0, 0, children);
 			const start = performance.now();
-			const result = builder.build(makeParseResult(root), FILE_PATH);
+			const result = builder.build(makeParseResult(root), FILE_PATH, FS_FILE_NODE_ID);
 			expect(performance.now() - start).toBeLessThan(2000);
 			expect(findNodesByLabel(result.nodes, 'METHOD').length).toBe(100);
 		});
@@ -540,7 +543,7 @@ describe('UastBuilder', () => {
 			// Wrap in an unmapped parent
 			const lexDecl = fakeNode('lexical_declaration', source, 0, source.length, 0, 0, [varNode]);
 			const root = fakeNode('program', source, 0, source.length, 0, 0, [lexDecl]);
-			const result = builder.build(makeParseResult(root), FILE_PATH);
+			const result = builder.build(makeParseResult(root), FILE_PATH, FS_FILE_NODE_ID);
 			// variable_declarator should still be found even though lexical_declaration was skipped
 			const locals = findNodesByLabel(result.nodes, 'LOCAL');
 			expect(locals.length).toBeGreaterThan(0);
@@ -553,7 +556,7 @@ describe('UastBuilder', () => {
 			const nameB = fakeNode('identifier', source, 9, 14, 0, 9, [], 'name'); // same id
 			const fn = fakeNode('function_declaration', source, 0, source.length, 0, 0, [nameA, nameB]);
 			const root = fakeNode('program', source, 0, source.length, 0, 0, [fn]);
-			const result = builder.build(makeParseResult(root), FILE_PATH);
+			const result = builder.build(makeParseResult(root), FILE_PATH, FS_FILE_NODE_ID);
 			// identifier nodes with same position should be deduplicated
 			const identifiers = findNodesByLabel(result.nodes, 'IDENTIFIER');
 			const ids = identifiers.map(n => n.id);
@@ -562,7 +565,7 @@ describe('UastBuilder', () => {
 
 		test('node IDs are unique across all nodes in result', () => {
 			const source = `class Calculator { add(a, b) { return a + b; } }`;
-			const result = builder.build(makeParseResult(makeClassWithMethod(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeClassWithMethod(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const ids = result.nodes.map(n => n.id);
 			expect(new Set(ids).size).toBe(ids.length);
 		});
@@ -575,7 +578,7 @@ describe('UastBuilder', () => {
 	describe('property correctness', () => {
 		test('lineNumber is 1-indexed (row 0 → lineNumber 1)', () => {
 			const source = `function greet(name) {}`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			// function_declaration starts at row 0 → lineNumber should be 1
 			expect(methods[0].lineNumber).toBe(1);
@@ -583,7 +586,7 @@ describe('UastBuilder', () => {
 
 		test('lineNumber of second-line node is 2', () => {
 			const { rootNode } = makeTwoFunctions();
-			const result = builder.build(makeParseResult(rootNode), FILE_PATH);
+			const result = builder.build(makeParseResult(rootNode), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			const bar = methods.find(m => m.name === 'bar');
 			expect(bar).toBeDefined();
@@ -592,14 +595,14 @@ describe('UastBuilder', () => {
 
 		test('columnNumber is 0-indexed (column 0 → columnNumber 0)', () => {
 			const source = `function greet(name) {}`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			expect(methods[0].columnNumber).toBe(0);
 		});
 
 		test('code property is a slice of source between startIndex and endIndex', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			// function_declaration spans the entire source (0..source.length)
 			expect(source).toContain(methods[0].code!.trim());
@@ -609,7 +612,7 @@ describe('UastBuilder', () => {
 			const longBody = 'x'.repeat(300);
 			const source = `function long() { return "${longBody}"; }`;
 			const root = makeSimpleFunction(source);
-			const result = builder.build(makeParseResult(root), FILE_PATH);
+			const result = builder.build(makeParseResult(root), FILE_PATH, FS_FILE_NODE_ID);
 			for (const node of result.nodes) {
 				if (node.code !== undefined) {
 					expect(node.code.length).toBeLessThanOrEqual(256);
@@ -619,7 +622,7 @@ describe('UastBuilder', () => {
 
 		test('offset and offsetEnd are set to startIndex and endIndex', () => {
 			const source = `function greet(name) { return "Hello"; }`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			expect(methods[0].offset).toBe(0);
 			expect(methods[0].offsetEnd).toBe(source.length);
@@ -627,14 +630,14 @@ describe('UastBuilder', () => {
 
 		test('offsetEnd > offset for non-empty nodes', () => {
 			const source = `function greet(name) {}`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const methods = findNodesByLabel(result.nodes, 'METHOD');
 			expect(methods[0].offsetEnd!).toBeGreaterThan(methods[0].offset!);
 		});
 
 		test('filename property equals the file path on all non-FILE nodes', () => {
 			const source = `function greet(name) {}`;
-			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH);
+			const result = builder.build(makeParseResult(makeSimpleFunction(source)), FILE_PATH, FS_FILE_NODE_ID);
 			const nonFileNodes = result.nodes.filter(n => n.label !== 'FILE');
 			for (const node of nonFileNodes) {
 				expect(node.filename).toBe(FILE_PATH);
@@ -650,20 +653,20 @@ describe('UastBuilder', () => {
 		test('removedNodeIds is always [] regardless of changedRanges', () => {
 			const source = `function greet(name) {}`;
 			// First parse — no changedRanges
-			const r1 = builder.build(makeParseResult(makeSimpleFunction(source), null), FILE_PATH);
+			const r1 = builder.build(makeParseResult(makeSimpleFunction(source), null), FILE_PATH, FS_FILE_NODE_ID);
 			expect(r1.removedNodeIds).toEqual([]);
 
 			// Second parse — with changedRanges (simulates incremental)
-			const r2 = builder.build(makeParseResult(makeSimpleFunction(source), []), FILE_PATH);
+			const r2 = builder.build(makeParseResult(makeSimpleFunction(source), []), FILE_PATH, FS_FILE_NODE_ID);
 			expect(r2.removedNodeIds).toEqual([]);
 		});
 
 		test('full rebuild with same tree produces same node IDs', () => {
 			const source = `function greet(name) {}`;
 			const root = makeSimpleFunction(source);
-			const r1 = builder.build(makeParseResult(root, null), FILE_PATH);
+			const r1 = builder.build(makeParseResult(root, null), FILE_PATH, FS_FILE_NODE_ID);
 			const b2 = new UastBuilder();
-			const r2 = b2.build(makeParseResult(root, []), FILE_PATH);
+			const r2 = b2.build(makeParseResult(root, []), FILE_PATH, FS_FILE_NODE_ID);
 			const ids1 = new Set(r1.nodes.map(n => n.id));
 			const ids2 = new Set(r2.nodes.map(n => n.id));
 			expect(ids1.size).toBe(ids2.size);

@@ -67,7 +67,7 @@ describe('DiffEngine — smoke tests', () => {
 		expect(typeof engine.computeDiff).toBe('function');
 	});
 
-	test('computeDiff returns an object with all six diff arrays', () => {
+	test('computeDiff returns an object with all five diff arrays', () => {
 		const engine = new DiffEngine();
 		const result = engine.computeDiff(emptyGraph(), emptyGraph());
 		expect(result).toBeDefined();
@@ -75,7 +75,6 @@ describe('DiffEngine — smoke tests', () => {
 		expect(Array.isArray(result.nodesToUpdate)).toBe(true);
 		expect(Array.isArray(result.nodesToRemove)).toBe(true);
 		expect(Array.isArray(result.edgesToAdd)).toBe(true);
-		expect(Array.isArray(result.edgesToUpdate)).toBe(true);
 		expect(Array.isArray(result.edgesToRemove)).toBe(true);
 	});
 });
@@ -97,7 +96,6 @@ describe('DiffEngine.computeDiff — no changes', () => {
 		expect(diff.nodesToUpdate).toHaveLength(0);
 		expect(diff.nodesToRemove).toHaveLength(0);
 		expect(diff.edgesToAdd).toHaveLength(0);
-		expect(diff.edgesToUpdate).toHaveLength(0);
 		expect(diff.edgesToRemove).toHaveLength(0);
 	});
 
@@ -501,7 +499,6 @@ describe('DiffEngine.hasChanges()', () => {
 			nodesToUpdate: [],
 			nodesToRemove: [],
 			edgesToAdd: [],
-			edgesToUpdate: [],
 			edgesToRemove: []
 		};
 	}
@@ -531,11 +528,6 @@ describe('DiffEngine.hasChanges()', () => {
 		expect(engine.hasChanges(diff)).toBe(true);
 	});
 
-	test('returns true when edgesToUpdate is non-empty', () => {
-		const diff: GraphDiff = { ...emptyDiff(), edgesToUpdate: [makeEdge('e', 'f')] };
-		expect(engine.hasChanges(diff)).toBe(true);
-	});
-
 	test('returns false when all diff arrays are empty', () => {
 		expect(engine.hasChanges(emptyDiff())).toBe(false);
 	});
@@ -558,7 +550,6 @@ describe('DiffEngine.createIncrementalPatch()', () => {
 			nodesToUpdate: [],
 			nodesToRemove: [],
 			edgesToAdd: [],
-			edgesToUpdate: [],
 			edgesToRemove: []
 		};
 	}
@@ -653,7 +644,6 @@ describe('DiffEngine.createIncrementalPatch()', () => {
 			nodesToUpdate: [makeCpgNode('upd', 'CALL')],
 			nodesToRemove: ['del'],
 			edgesToAdd: [makeEdge('a', 'b')],
-			edgesToUpdate: [makeEdge('b', 'c')],
 			edgesToRemove: [makeEdge('c', 'd')]
 		};
 		const patch = engine.createIncrementalPatch(diff);
@@ -661,7 +651,6 @@ describe('DiffEngine.createIncrementalPatch()', () => {
 		expect(patch.updateNodes).toBeDefined();
 		expect(patch.removeNodes).toBeDefined();
 		expect(patch.addLinks).toBeDefined();
-		expect(patch.updateLinks).toBeDefined();
 		expect(patch.removeLinks).toBeDefined();
 	});
 });

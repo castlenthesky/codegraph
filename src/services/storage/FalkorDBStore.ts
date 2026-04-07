@@ -159,16 +159,15 @@ export class FalkorDBStore implements IGraphStore {
 		if (nodeIds.length === 0) { return; }
 		const BATCH_SIZE = 100;
 		for (let i = 0; i < nodeIds.length; i += BATCH_SIZE) {
-			const batch = nodeIds.slice(i, i + BATCH_SIZE);
-			const idList = batch.map(id => `"${id.replace(/"/g, '\\"')}"`).join(', ');
-			await this.query(`MATCH (n) WHERE n.id IN [${idList}] DETACH DELETE n`);
+			const nodeIdBatch = nodeIds.slice(i, i + BATCH_SIZE);
+			await this.query(`MATCH (n) WHERE n.id IN $ids DETACH DELETE n`, { ids: nodeIdBatch });
 		}
 	}
 
 	public async replaceFileSubgraph(filePath: string, nodes: CpgNode[], edges: CpgEdge[]): Promise<void> {
-		const escapedPath = filePath.replace(/"/g, '\\"');
 		await this.query(
-			`MATCH (n) WHERE n.filename = "${escapedPath}" AND NOT n.label = "FILE" AND NOT (n:DIRECTORY) DETACH DELETE n`
+			`MATCH (n) WHERE n.filename = $filePath AND NOT n.label = "FILE" AND NOT (n:DIRECTORY) DETACH DELETE n`,
+			{ filePath }
 		);
 		if (nodes.length > 0) { await this.createNodes(nodes); }
 		if (edges.length > 0) { await this.createEdges(edges); }
@@ -183,7 +182,11 @@ export class FalkorDBStore implements IGraphStore {
 			'CREATE INDEX FOR (n:IDENTIFIER) ON (n.name)',
 		];
 		for (const idx of indexes) {
-			try { await this.query(idx); } catch { /* ignore if already exists */ }
+			try {
+				await this.query(idx);
+			} catch (e) {
+				console.warn(`[FalkorDBStore] Index creation skipped or failed for "${idx}":`, e);
+			}
 		}
 	}
 

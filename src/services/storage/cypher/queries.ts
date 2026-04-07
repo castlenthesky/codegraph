@@ -9,7 +9,12 @@ import type { CpgNode, CpgEdge } from '../../../types/cpg';
 
 export function serializeValue(value: unknown): string {
 	if (typeof value === 'string') {
-		return `"${value.replace(/"/g, '\\"')}"`;
+		const escaped = value
+			.replace(/\\/g, '\\\\')
+			.replace(/\n/g, '\\n')
+			.replace(/\r/g, '\\r')
+			.replace(/"/g, '\\"');
+		return `"${escaped}"`;
 	} else if (typeof value === 'number' || typeof value === 'boolean') {
 		return String(value);
 	} else if (value === null || value === undefined) {
@@ -39,7 +44,7 @@ const VALID_CPG_LABELS = new Set([
 ]);
 
 export function safeCpgLabel(label: string): string {
-	return VALID_CPG_LABELS.has(label) ? label : 'CPG';
+	return VALID_CPG_LABELS.has(label) ? label : 'UNKNOWN';
 }
 
 export function buildBatchNodeCypher(nodes: CpgNode[]): string[] {

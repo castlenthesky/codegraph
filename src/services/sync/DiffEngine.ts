@@ -1,41 +1,8 @@
 import type { GraphNode, GraphEdge } from '../../types/nodes';
+import type { GraphData, GraphDiff, IncrementalPatch } from '../../types/sync';
+import { cpgNodeVal } from '../../utils/cpgNodeUtils';
 
-function cpgNodeVal(label: string): number {
-	switch (label) {
-		case 'METHOD': return 4;
-		case 'TYPE_DECL': return 3;
-		case 'DIRECTORY': return 3;
-		case 'CALL': return 2;
-		case 'CONTROL_STRUCTURE': return 2;
-		case 'IDENTIFIER': return 1.5;
-		case 'LITERAL': return 1.5;
-		case 'BLOCK': return 1;
-		default: return 2;
-	}
-}
-
-export interface GraphData {
-	nodes: GraphNode[];
-	edges: GraphEdge[];
-}
-
-export interface GraphDiff {
-	nodesToAdd: GraphNode[];
-	nodesToUpdate: GraphNode[];
-	nodesToRemove: string[]; // Just IDs
-	edgesToAdd: GraphEdge[];
-	edgesToUpdate: GraphEdge[];
-	edgesToRemove: GraphEdge[];
-}
-
-export interface IncrementalPatch {
-	addNodes?: Array<{ id: string; name: string; type: string; val: number }>;
-	removeNodes?: string[]; // Node IDs
-	updateNodes?: Array<{ id: string; name?: string; type?: string; val?: number }>;
-	addLinks?: Array<{ source: string; target: string; type?: string }>;
-	updateLinks?: Array<{ source: string; target: string; type?: string }>;
-	removeLinks?: Array<{ source: string; target: string; type?: string }>;
-}
+export type { GraphData, GraphDiff, IncrementalPatch };
 
 /**
  * Computes differences between graph states and produces incremental patches
@@ -48,7 +15,6 @@ export class DiffEngine {
 			nodesToUpdate: [],
 			nodesToRemove: [],
 			edgesToAdd: [],
-			edgesToUpdate: [],
 			edgesToRemove: []
 		};
 
@@ -105,7 +71,7 @@ export class DiffEngine {
 		}
 
 		// For CPG nodes, compare by lineNumber + code snippet
-		if (oldNode.label === newNode.label && 'lineNumber' in oldNode && 'lineNumber' in newNode) {
+		if (oldNode.label === newNode.label && (oldNode as any).lineNumber !== undefined && (newNode as any).lineNumber !== undefined) {
 			if ((oldNode as any).lineNumber !== (newNode as any).lineNumber) { return true; }
 			if ((oldNode as any).code !== (newNode as any).code) { return true; }
 		}
@@ -146,14 +112,6 @@ export class DiffEngine {
 			}));
 		}
 
-		if (diff.edgesToUpdate.length > 0) {
-			patch.updateLinks = diff.edgesToUpdate.map(edge => ({
-				source: edge.source,
-				target: edge.target,
-				type: edge.type
-			}));
-		}
-
 		if (diff.edgesToRemove.length > 0) {
 			patch.removeLinks = diff.edgesToRemove.map(edge => ({
 				source: edge.source,
@@ -170,7 +128,6 @@ export class DiffEngine {
 			diff.nodesToUpdate.length > 0 ||
 			diff.nodesToRemove.length > 0 ||
 			diff.edgesToAdd.length > 0 ||
-			diff.edgesToUpdate.length > 0 ||
 			diff.edgesToRemove.length > 0;
 	}
 }

@@ -28,7 +28,7 @@ export class FileScanner implements IFileScanner {
 		const watchFoldersStr = config.get<string>('watchFolders', 'src');
 		const watchFolders = watchFoldersStr.split(',').map(f => f.trim()).filter(f => f.length > 0);
 
-		vscode.window.withProgress({
+		return vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
 			title: 'Indexing workspace files...',
 			cancellable: false

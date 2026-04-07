@@ -27,17 +27,18 @@ export function detectLanguage(extension: string): string {
 	return LANG_MAP[extension.toLowerCase()] || 'unknown';
 }
 
+/** Converts a relative file path to a normalized graph node ID (forward-slash separators). */
 export function generateId(relativePath: string): string {
 	return relativePath.replace(/\\/g, '/');
 }
 
 export function shouldIgnorePath(absolutePath: string): boolean {
 	const basename = path.basename(absolutePath);
-	return basename.startsWith('.') || absolutePath.includes('node_modules');
+	return basename.startsWith('.') || absolutePath.split(path.sep).includes('node_modules');
 }
 
-export async function createDirectoryNode(absolutePath: string, relativePath: string): Promise<DirectoryNode> {
-	const stats = await fs.promises.stat(absolutePath);
+export async function createDirectoryNode(absolutePath: string, relativePath: string, stats?: fs.Stats): Promise<DirectoryNode> {
+	const resolvedStats = stats ?? await fs.promises.stat(absolutePath);
 
 	return {
 		id: generateId(relativePath),
@@ -45,14 +46,14 @@ export async function createDirectoryNode(absolutePath: string, relativePath: st
 		name: path.basename(absolutePath),
 		path: absolutePath,
 		relativePath,
-		createdAt: stats.birthtimeMs,
-		modifiedAt: stats.mtimeMs
+		createdAt: resolvedStats.birthtimeMs,
+		modifiedAt: resolvedStats.mtimeMs
 	};
 }
 
-export async function createFileNode(absolutePath: string, relativePath: string): Promise<FileNode> {
-	const stats = await fs.promises.stat(absolutePath);
-	const ext = path.extname(absolutePath);
+export async function createFileNode(absolutePath: string, relativePath: string, stats?: fs.Stats): Promise<FileNode> {
+	const resolvedStats = stats ?? await fs.promises.stat(absolutePath);
+	const ext = path.extname(absolutePath).toLowerCase();
 
 	return {
 		id: generateId(relativePath),
@@ -62,9 +63,9 @@ export async function createFileNode(absolutePath: string, relativePath: string)
 		relativePath,
 		extension: ext,
 		language: detectLanguage(ext),
-		size: stats.size,
-		createdAt: stats.birthtimeMs,
-		modifiedAt: stats.mtimeMs,
+		size: resolvedStats.size,
+		createdAt: resolvedStats.birthtimeMs,
+		modifiedAt: resolvedStats.mtimeMs,
 		isParsed: false
 	};
 }

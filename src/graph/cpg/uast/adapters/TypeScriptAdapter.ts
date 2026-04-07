@@ -1,51 +1,16 @@
-import type { CpgNodeType } from '../../../../types/cpg';
-
-export const TS_NODE_MAP: Record<string, CpgNodeType> = {
-	'program': 'FILE',
-	'function_declaration': 'METHOD',
-	'method_definition': 'METHOD',
-	'arrow_function': 'METHOD',
-	'function_expression': 'METHOD',
-	'generator_function_declaration': 'METHOD',
-	'class_declaration': 'TYPE_DECL',
-	'class_expression': 'TYPE_DECL',
-	'interface_declaration': 'TYPE_DECL',
-	'type_alias_declaration': 'TYPE_DECL',
-	'enum_declaration': 'TYPE_DECL',
-	'statement_block': 'BLOCK',
-	'call_expression': 'CALL',
-	'new_expression': 'CALL',
-	'if_statement': 'CONTROL_STRUCTURE',
-	'for_statement': 'CONTROL_STRUCTURE',
-	'for_in_statement': 'CONTROL_STRUCTURE',
-	'while_statement': 'CONTROL_STRUCTURE',
-	'do_statement': 'CONTROL_STRUCTURE',
-	'switch_statement': 'CONTROL_STRUCTURE',
-	'try_statement': 'CONTROL_STRUCTURE',
-	'identifier': 'IDENTIFIER',
-	'property_identifier': 'FIELD_IDENTIFIER',
-	'shorthand_property_identifier': 'FIELD_IDENTIFIER',
-	'private_property_identifier': 'FIELD_IDENTIFIER',
-	'string': 'LITERAL',
-	'template_string': 'LITERAL',
-	'number': 'LITERAL',
-	'true': 'LITERAL',
-	'false': 'LITERAL',
-	'null': 'LITERAL',
-	'undefined': 'LITERAL',
-	'variable_declarator': 'LOCAL',
-	'required_parameter': 'METHOD_PARAMETER_IN',
-	'optional_parameter': 'METHOD_PARAMETER_IN',
-	'return_statement': 'RETURN',
-	'type_identifier': 'TYPE_REF',
-	'predefined_type': 'TYPE_REF',
-	'comment': 'COMMENT',
-	'decorator': 'ANNOTATION',
-	'import_statement': 'CALL',
-	'export_statement': 'MODIFIER',
-	'namespace_import': 'NAMESPACE_BLOCK',
-	'member_expression': 'FIELD_IDENTIFIER',
-};
+/**
+ * TypeScript/JavaScript node property extractor.
+ * The nodeMap has moved to LanguageConfig.ts (TYPESCRIPT_CONFIG.nodeMap).
+ * This file retains only the extractNodeProps function which has complex
+ * language-specific logic that doesn't belong in a data config.
+ *
+ * TS_NODE_MAP is re-exported from LanguageConfig for backward compatibility
+ * with existing tests and any code that imports it directly.
+ */
+export { LANGUAGE_CONFIGS } from '../LanguageConfig';
+// Convenience re-export so tests and callers can still import TS_NODE_MAP here
+import { LANGUAGE_CONFIGS as _LC } from '../LanguageConfig';
+export const TS_NODE_MAP = _LC['typescript'].nodeMap;
 
 export function extractNodeProps(
 	tsNode: { type: string; startIndex: number; endIndex: number; startPosition: { row: number; column: number }; childForFieldName(name: string): { startIndex: number; endIndex: number } | null; parent?: { type: string; childForFieldName(name: string): { startIndex: number; endIndex: number } | null } | null },

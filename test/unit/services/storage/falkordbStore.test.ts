@@ -20,6 +20,8 @@ import type { CpgNode, CpgEdge } from '../../../../src/types/cpg';
 
 // Queries captured by the fake graph.query()
 let capturedQueries: string[] = [];
+// Params captured alongside each query (parallel array)
+let capturedParams: (unknown | undefined)[] = [];
 // Return value factory for graph.query() — tests can override
 let queryReturnFactory: () => unknown = () => ({ data: [] });
 
@@ -55,8 +57,10 @@ mock.module('vscode', () => ({
 }));
 
 const mockGraph = {
-	query: async (cypher: string, _opts?: unknown) => {
+	query: async (cypher: string, opts?: unknown) => {
 		capturedQueries.push(cypher);
+		// opts is { params: {...} } when parameterized, or undefined
+		capturedParams.push(opts ? (opts as any).params : undefined);
 		return queryReturnFactory();
 	},
 };
@@ -128,6 +132,7 @@ describe('FalkorDBStore', () => {
 
 	beforeEach(() => {
 		capturedQueries = [];
+		capturedParams = [];
 		embeddedOpenArgs = [];
 		remoteConnectArgs = [];
 		queryReturnFactory = () => ({ data: [] });
@@ -463,17 +468,17 @@ describe('FalkorDBStore', () => {
 			expect(capturedQueries.length).toBe(0);
 		});
 
-		test('single id: fires one DELETE query containing the id', async () => {
+		test('single id: fires one DELETE query using $ids param', async () => {
 			await store.deleteNodes(['abc-123']);
 			expect(capturedQueries.length).toBe(1);
-			expect(capturedQueries[0]).toContain('"abc-123"');
+			expect(capturedQueries[0]).toContain('$ids');
+			expect(capturedParams[0]).toEqual({ ids: ['abc-123'] });
 		});
 
-		test('multiple ids: all appear in query IN list', async () => {
+		test('multiple ids: all passed in $ids param array', async () => {
 			await store.deleteNodes(['a', 'b', 'c']);
-			expect(capturedQueries[0]).toContain('"a"');
-			expect(capturedQueries[0]).toContain('"b"');
-			expect(capturedQueries[0]).toContain('"c"');
+			expect(capturedQueries[0]).toContain('$ids');
+			expect(capturedParams[0]).toEqual({ ids: ['a', 'b', 'c'] });
 		});
 
 		test('more than 100 ids: spans batch boundary', async () => {
@@ -483,10 +488,7 @@ describe('FalkorDBStore', () => {
 			expect(capturedQueries.length).toBe(2);
 		});
 
-		test('id containing double-quotes is escaped', async () => {
-			await store.deleteNodes(['file"path']);
-			expect(capturedQueries[0]).toContain('\\"path');
-		});
+
 	});
 
 	// -------------------------------------------------------------------------
@@ -617,21 +619,17 @@ describe('FalkorDBStore', () => {
 	// -------------------------------------------------------------------------
 
 	describe('replaceFileSubgraph()', () => {
-		test('first query deletes nodes matching filename', async () => {
+		test('first query deletes nodes matching filename using $filePath param', async () => {
 			await store.replaceFileSubgraph('/src/app.ts', [], []);
 			expect(capturedQueries[0]).toContain('DETACH DELETE');
-			expect(capturedQueries[0]).toContain('/src/app.ts');
+			expect(capturedQueries[0]).toContain('$filePath');
+			expect(capturedParams[0]).toEqual({ filePath: '/src/app.ts' });
 		});
 
 		test('delete query filters out FILE and DIRECTORY nodes', async () => {
 			await store.replaceFileSubgraph('/src/app.ts', [], []);
 			expect(capturedQueries[0]).toContain('NOT n.label = "FILE"');
 			expect(capturedQueries[0]).toContain('NOT (n:DIRECTORY)');
-		});
-
-		test('double-quotes in file path are escaped', async () => {
-			await store.replaceFileSubgraph('/src/odd"path.ts', [], []);
-			expect(capturedQueries[0]).toContain('\\"path.ts');
 		});
 
 		test('skips createNodes when nodes array is empty', async () => {

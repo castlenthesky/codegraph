@@ -16,9 +16,9 @@ describe("serializeValue", () => {
     expect(serializeValue("hello")).toBe('"hello"');
   });
 
-  test("does not escape backslashes (only double-quotes are escaped)", () => {
-    // serializeValue only replaces " → \" — backslashes pass through unchanged
-    expect(serializeValue("C:\\Users\\foo")).toBe('"C:\\Users\\foo"');
+  test("escapes backslashes to double-backslash", () => {
+    // serializeValue escapes \ → \\ before escaping "
+    expect(serializeValue("C:\\Users\\foo")).toBe('"C:\\\\Users\\\\foo"');
   });
 
   test("escapes double-quote characters inside strings", () => {
@@ -204,16 +204,16 @@ describe("safeCpgLabel", () => {
     expect(safeCpgLabel("FINDING")).toBe("FINDING");
   });
 
-  test("invalid label falls back to 'CPG'", () => {
-    expect(safeCpgLabel("NOT_A_REAL_LABEL")).toBe("CPG");
+  test("invalid label falls back to 'UNKNOWN'", () => {
+    expect(safeCpgLabel("NOT_A_REAL_LABEL")).toBe("UNKNOWN");
   });
 
-  test("empty string falls back to 'CPG'", () => {
-    expect(safeCpgLabel("")).toBe("CPG");
+  test("empty string falls back to 'UNKNOWN'", () => {
+    expect(safeCpgLabel("")).toBe("UNKNOWN");
   });
 
-  test("lowercase label falls back to 'CPG' (labels are case-sensitive)", () => {
-    expect(safeCpgLabel("method")).toBe("CPG");
+  test("lowercase label falls back to 'UNKNOWN' (labels are case-sensitive)", () => {
+    expect(safeCpgLabel("method")).toBe("UNKNOWN");
   });
 });
 
@@ -289,10 +289,10 @@ describe("buildBatchNodeCypher", () => {
     expect(stmt).toContain('\\"with\\"');
   });
 
-  test("node with invalid label falls back to CPG label", () => {
+  test("node with invalid label falls back to UNKNOWN label", () => {
     const node = { id: "x", label: "NOT_REAL" } as unknown as CpgNode;
     const [stmt] = buildBatchNodeCypher([node]);
-    expect(stmt).toContain(":CPG");
+    expect(stmt).toContain(":UNKNOWN");
   });
 
   test("node with LITERAL label is emitted correctly", () => {
